@@ -14,11 +14,11 @@ import redis # 导入Redis
 
 ELASTICSEARCH_URL = "https://143.64.161.23:9200/"
 ELASTICSEARCH_USERNAME = "admin"
-ELASTICSEARCH_PASSWORD = "Your ES Password"
+ELASTICSEARCH_PASSWORD = "Jessie@123"
 # 添加Redis连接
 REDIS_HOST="demoredis01.redis.cache.chinacloudapi.cn"
 REDIS_PORT=6379
-REDIS_PASSWORD="Your redis Password"
+REDIS_PASSWORD="kDEImda3sCxMInwKfWyjhWyOWavDPKsbKAzCaCksrVI="
 
 es = Elasticsearch(
     [ELASTICSEARCH_URL],
@@ -207,4 +207,6 @@ class AuthProxy:
 addons = [
     AuthProxy()
 ]
+
+
 
