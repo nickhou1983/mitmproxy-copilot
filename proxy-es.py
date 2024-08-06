@@ -14,11 +14,11 @@ import redis # 导入Redis
 
 ELASTICSEARCH_URL = "https://143.64.161.23:9200/"
 ELASTICSEARCH_USERNAME = "admin"
-ELASTICSEARCH_PASSWORD = "Jessie@123"
+ELASTICSEARCH_PASSWORD = "{You ES Password}"
 # 添加Redis连接
 REDIS_HOST="demoredis01.redis.cache.chinacloudapi.cn"
 REDIS_PORT=6379
-REDIS_PASSWORD="kDEImda3sCxMInwKfWyjhWyOWavDPKsbKAzCaCksrVI="
+REDIS_PASSWORD="{Your Redis Password}"
 
 es = Elasticsearch(
     [ELASTICSEARCH_URL],
@@ -132,6 +132,7 @@ class AuthProxy:
                         print(f"Error decoding JSON: {e}")
         return json_objects
 
+
     async def save_to_elasticsearch(self, flow: http.HTTPFlow):
         ctx.log.info("url: " + flow.request.url)
         if "complet"  in flow.request.url or "telemetry"  in flow.request.url:
@@ -207,6 +208,9 @@ class AuthProxy:
 addons = [
     AuthProxy()
 ]
+
+
+
 
 
 

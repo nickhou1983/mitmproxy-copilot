@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: mitmproxy-ha
-        image: demoacrcn.azurecr.cn/mitmproxy-allow-hosts:v3
+        image: demoacrcn.azurecr.cn/mitmproxy-allow-hosts:v4
         volumeMounts:
         - name: mitmproxy-volume
           mountPath: /app
