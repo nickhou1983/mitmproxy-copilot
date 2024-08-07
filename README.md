@@ -15,7 +15,12 @@
 3. creds.txt 用于存储用户名和密码，用于mitmproxy的认证，和记录访问的用户名；
 4. 可以通过对proxy-es.py进行修改，实现更多的功能；
 
-
+## 代理服务器支持捕获的域名说明
+| 捕获的域名 | 用途 | 内容 | 延时影响 | 说明 |
+| --- | --- | --- | --- | --- |
+| Api.githubcopilot.com| Github Copilot Chat | Chat 请求和响应内容 | 启用：首字符返回延时平均在5-10s；关闭：首字符返回延时平均在1-2s | 启用此URL流量捕获后，代理服务器会首先缓存Copilot Chat响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
+| Copilot-proxy.githubusercontent.com | IDE Completion（代码补全等） | IDE Editor中请求和响应内容 | 基本无影响 | 启用此URL流量捕获后，代理服务器会首先缓存Copilot IDE Completion响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
+| Copilot-Telemetry.githubusercontent.com/Copilot-Telemetry-Service.githubusercontent.com | Github Copilot 遥测数据 | IDE Completion ：代码建议行数/代码接受行数 | 不适用 | 当前不支持Copilot Chat 的遥测数据 |
 
 ## 部署架构
 
@@ -28,6 +33,7 @@
 | mitmproxy | 4C16G 200GDisk | 1 | 部署mitmproxy
 | elasticsearch | 2C8G 500GDisk | 3 | 存储mitmproxy数据
 | kibana | 2C8G 200GDisk | 1 | 可视化mitmproxy数据
+
 
 
 ## 使用方法
