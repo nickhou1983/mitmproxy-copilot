@@ -13,7 +13,7 @@ import functools
 
 ELASTICSEARCH_URL = "https://143.64.161.23:9200/"
 ELASTICSEARCH_USERNAME = "admin"
-ELASTICSEARCH_PASSWORD = "Jessie@Hunan.com3"
+ELASTICSEARCH_PASSWORD = "admin"
 
 es = Elasticsearch(
     [ELASTICSEARCH_URL],
