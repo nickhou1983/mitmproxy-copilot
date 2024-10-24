@@ -7,6 +7,7 @@ import re
 import os
 import json
 import functools
+import msal
 
 # 通常仅需要修改这里的配置
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
@@ -48,11 +49,25 @@ allowed_patterns = [
      "https://api.github.com/.*"
 ]
 
+# Azure AD 配置
+TENANT_ID = os.getenv("AZURE_TENANT_ID")
+CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
+CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPE = ["User.Read"]
+
 # 身份验证函数
-# def authenticate(username, password):
-#     # 在这里实现你的身份验证逻辑
-#     # 返回True表示验证通过，False表示验证失败
-#     return username == password
+def authenticate(username, password):
+    app = msal.ConfidentialClientApplication(
+        CLIENT_ID,
+        authority=AUTHORITY,
+        client_credential=CLIENT_SECRET,
+    )
+    result = app.acquire_token_for_client(scopes=SCOPE)
+    if "access_token" in result:
+        return True
+    return False
+
 def is_url_allowed(url: str) -> bool:
     for pattern in allowed_patterns:
         if re.match(pattern, url):
@@ -90,20 +105,13 @@ class AuthProxy:
         username, password = auth_string.split(":")
         ctx.log.info("User: " + username + " Password: " + password)
         # 验证用户名和密码
-        if username in self.credentials:
-            # If the username exists, check if the password is correct
-            if self.credentials[username] != password:
-                ctx.log.info("User: " + username + " attempted to log in with an incorrect password.")
-                flow.response = http.Response.make(401)
-                return
+        if authenticate(username, password):
+            ctx.log.info("Authenticated: " + flow.client_conn.address[0])
+            self.proxy_authorizations[(flow.client_conn.address[0])] = username
         else:
-            # If the username does not exist, log the event and return a 401 response
-            ctx.log.info("Username: " + username + " does not exist.")
+            ctx.log.info("Authentication failed for user: " + username)
             flow.response = http.Response.make(401)
             return
-        ctx.log.info("Authenticated: " + flow.client_conn.address[0])
-        self.proxy_authorizations[(flow.client_conn.address[0])] = username
-    
     
     def request(self, flow: http.HTTPFlow):
         if not is_url_allowed(flow.request.url):
