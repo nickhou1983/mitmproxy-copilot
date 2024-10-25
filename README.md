@@ -75,3 +75,33 @@ certutil -addstore root mitmproxy-ca-cert.cer
 * Http:Proxy 采用如下格式：*http://用户名:密码@代理服务器地址:代理服务器端口*
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
 
+### Azure AD 配置
+
+1. 在 Azure 门户中注册一个新的应用程序，并记下应用程序(客户端)ID、目录(租户)ID和客户端密钥。
+
+2. 在 Kubernetes 集群中创建一个 secret 来存储 Azure AD 凭据：
+```
+kubectl create secret generic azure-ad-secret --from-literal=tenant-id=<your-tenant-id> --from-literal=client-id=<your-client-id> --from-literal=client-secret=<your-client-secret>
+```
+
+3. 更新 `aks-deployment.yaml` 文件以包含 Azure AD 环境变量：
+```yaml
+env:
+- name: AZURE_AD_TENANT_ID
+  valueFrom:
+    secretKeyRef:
+      name: azure-ad-secret
+      key: tenant-id
+- name: AZURE_AD_CLIENT_ID
+  valueFrom:
+    secretKeyRef:
+      name: azure-ad-secret
+      key: client-id
+- name: AZURE_AD_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: azure-ad-secret
+      key: client-secret
+```
+
+4. 在 `proxy-es.py` 中，Azure AD 身份验证将自动使用这些环境变量进行配置。

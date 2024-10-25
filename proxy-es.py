@@ -7,6 +7,7 @@ import re
 import os
 import json
 import functools
+import msal
 
 # 通常仅需要修改这里的配置
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
@@ -64,6 +65,7 @@ class AuthProxy:
         self.loop = asyncio.get_event_loop()
         self.proxy_authorizations = {} 
         self.credentials = self.load_credentials("creds.txt")
+        self.azure_ad_credentials = self.load_azure_ad_credentials()
 
     def load_credentials(self, file_path):
         if not os.path.exists(file_path):
@@ -74,6 +76,28 @@ class AuthProxy:
                 username, password = line.strip().split(",")
                 creds[username] = password
         return creds
+
+    def load_azure_ad_credentials(self):
+        tenant_id = os.getenv("AZURE_AD_TENANT_ID")
+        client_id = os.getenv("AZURE_AD_CLIENT_ID")
+        client_secret = os.getenv("AZURE_AD_CLIENT_SECRET")
+        authority = f"https://login.microsoftonline.com/{tenant_id}"
+        return {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "authority": authority
+        }
+
+    def authenticate_with_azure_ad(self, username, password):
+        app = msal.ConfidentialClientApplication(
+            self.azure_ad_credentials["client_id"],
+            authority=self.azure_ad_credentials["authority"],
+            client_credential=self.azure_ad_credentials["client_secret"]
+        )
+        result = app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
+        if "access_token" in result:
+            return True
+        return False
 
     def http_connect(self, flow: http.HTTPFlow):
         proxy_auth = flow.request.headers.get("Proxy-Authorization", "")
@@ -96,6 +120,8 @@ class AuthProxy:
                 ctx.log.info("User: " + username + " attempted to log in with an incorrect password.")
                 flow.response = http.Response.make(401)
                 return
+        elif self.authenticate_with_azure_ad(username, password):
+            ctx.log.info("User: " + username + " authenticated with Azure AD.")
         else:
             # If the username does not exist, log the event and return a 401 response
             ctx.log.info("Username: " + username + " does not exist.")
