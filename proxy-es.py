@@ -7,6 +7,7 @@ import re
 import os
 import json
 import functools
+import msal
 
 # 通常仅需要修改这里的配置
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
@@ -14,6 +15,10 @@ import functools
 ELASTICSEARCH_URL = "https://143.64.161.23:9200/"
 ELASTICSEARCH_USERNAME = "admin"
 ELASTICSEARCH_PASSWORD = "admin"
+
+AZURE_AD_TENANT_ID = os.getenv("AZURE_AD_TENANT_ID")
+AZURE_AD_CLIENT_ID = os.getenv("AZURE_AD_CLIENT_ID")
+AZURE_AD_CLIENT_SECRET = os.getenv("AZURE_AD_CLIENT_SECRET")
 
 es = Elasticsearch(
     [ELASTICSEARCH_URL],
@@ -103,7 +108,23 @@ class AuthProxy:
             return
         ctx.log.info("Authenticated: " + flow.client_conn.address[0])
         self.proxy_authorizations[(flow.client_conn.address[0])] = username
+
+        # Validate Azure AD token
+        if not self.validate_azure_ad_token(username, password):
+            ctx.log.info("Azure AD token validation failed for user: " + username)
+            flow.response = http.Response.make(401)
+            return
     
+    def validate_azure_ad_token(self, username, password):
+        app = msal.ConfidentialClientApplication(
+            AZURE_AD_CLIENT_ID,
+            authority=f"https://login.microsoftonline.com/{AZURE_AD_TENANT_ID}",
+            client_credential=AZURE_AD_CLIENT_SECRET,
+        )
+        result = app.acquire_token_for_client(scopes=["https://graph.microsoft.com/.default"])
+        if "access_token" in result:
+            return True
+        return False
     
     def request(self, flow: http.HTTPFlow):
         if not is_url_allowed(flow.request.url):

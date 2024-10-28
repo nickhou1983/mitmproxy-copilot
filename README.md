@@ -75,3 +75,43 @@ certutil -addstore root mitmproxy-ca-cert.cer
 * Http:Proxy 采用如下格式：*http://用户名:密码@代理服务器地址:代理服务器端口*
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
 
+### Azure AD 集成
+
+1. 配置 Azure AD 应用程序
+   - 在 Azure 门户中，导航到 Azure Active Directory。
+   - 选择 "应用注册" 并点击 "新注册"。
+   - 输入应用程序的名称，并选择支持的帐户类型。
+   - 在重定向 URI 中，输入应用程序的重定向 URI（如果适用）。
+   - 点击 "注册"。
+
+2. 获取 Azure AD 应用程序的凭据
+   - 在应用注册的 "概述" 页面，记下 "应用程序（客户端）ID" 和 "目录（租户）ID"。
+   - 导航到 "证书和密码" 页面，点击 "新客户端密码" 以生成客户端密码。记下生成的客户端密码。
+
+3. 配置环境变量
+   - 在 `aks-deployment.yaml` 文件中，添加以下环境变量：
+     ```yaml
+     env:
+     - name: AZURE_AD_TENANT_ID
+       valueFrom:
+         secretKeyRef:
+           name: azure-ad-secret
+           key: tenant-id
+     - name: AZURE_AD_CLIENT_ID
+       valueFrom:
+         secretKeyRef:
+           name: azure-ad-secret
+           key: client-id
+     - name: AZURE_AD_CLIENT_SECRET
+       valueFrom:
+         secretKeyRef:
+           name: azure-ad-secret
+           key: client-secret
+     ```
+
+4. 更新 `proxy-es.py` 脚本以支持 Azure AD 身份验证
+   - 在 `proxy-es.py` 脚本中，导入 `msal` 库并添加 Azure AD 身份验证逻辑。
+
+5. 构建和部署更新的 Docker 镜像
+   - 通过 Dockerfile 构建更新的镜像，并使用更新的 `aks-deployment.yaml` 文件部署到 AKS 集群。
+
