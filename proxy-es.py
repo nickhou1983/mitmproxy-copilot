@@ -7,6 +7,8 @@ import re
 import os
 import json
 import functools
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 
 # 通常仅需要修改这里的配置
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
@@ -48,11 +50,6 @@ allowed_patterns = [
      "https://api.github.com/.*"
 ]
 
-# 身份验证函数
-# def authenticate(username, password):
-#     # 在这里实现你的身份验证逻辑
-#     # 返回True表示验证通过，False表示验证失败
-#     return username == password
 def is_url_allowed(url: str) -> bool:
     for pattern in allowed_patterns:
         if re.match(pattern, url):
@@ -63,54 +60,40 @@ class AuthProxy:
     def __init__(self):
         self.loop = asyncio.get_event_loop()
         self.proxy_authorizations = {} 
-        self.credentials = self.load_credentials("creds.txt")
+        self.credential = DefaultAzureCredential()
+        self.secret_client = SecretClient(vault_url="https://<your-key-vault-name>.vault.azure.net/", credential=self.credential)
 
-    def load_credentials(self, file_path):
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Credentials file '{file_path}' not found")
-        creds = {}
-        with open(file_path, "r") as f:
-            for line in f:
-                username, password = line.strip().split(",")
-                creds[username] = password
-        return creds
+    def authenticate(self, username, password):
+        try:
+            secret = self.secret_client.get_secret(username)
+            return secret.value == password
+        except Exception as e:
+            ctx.log.info(f"Authentication error: {str(e)}")
+            return False
 
     def http_connect(self, flow: http.HTTPFlow):
         proxy_auth = flow.request.headers.get("Proxy-Authorization", "")
-        # 如果没有代理授权头，返回401
         if not proxy_auth:
             flow.response = http.Response.make(401)
         ctx.log.info("Proxy-Authorization: " + proxy_auth.strip())
-        if proxy_auth.strip() == "" :
+        if proxy_auth.strip() == "":
             flow.response = http.Response.make(401)
-        #    self.proxy_authorizations[(flow.client_conn.address[0])] = "daniel"
-        #    return
         auth_type, auth_string = proxy_auth.split(" ", 1)
         auth_string = base64.b64decode(auth_string).decode("utf-8")
         username, password = auth_string.split(":")
         ctx.log.info("User: " + username + " Password: " + password)
-        # 验证用户名和密码
-        if username in self.credentials:
-            # If the username exists, check if the password is correct
-            if self.credentials[username] != password:
-                ctx.log.info("User: " + username + " attempted to log in with an incorrect password.")
-                flow.response = http.Response.make(401)
-                return
-        else:
-            # If the username does not exist, log the event and return a 401 response
-            ctx.log.info("Username: " + username + " does not exist.")
+        if not self.authenticate(username, password):
+            ctx.log.info("Authentication failed for user: " + username)
             flow.response = http.Response.make(401)
             return
         ctx.log.info("Authenticated: " + flow.client_conn.address[0])
         self.proxy_authorizations[(flow.client_conn.address[0])] = username
-    
     
     def request(self, flow: http.HTTPFlow):
         if not is_url_allowed(flow.request.url):
             flow.response = http.Response.make(403, b"Forbidden", {"Content-Type": "text/html"})
 
     def response(self, flow: http.HTTPFlow):
-        # 异步将请求和响应存储到Elasticsearch
         ctx.log.info("response: " + flow.request.url)
         asyncio.ensure_future(self.save_to_elasticsearch(flow))
 
@@ -119,13 +102,13 @@ class AuthProxy:
         depth = 0
         start_index = 0
         for i, char in enumerate(json_string):
-            if char == '{':
-                if depth == 0:
+            if (char == '{'):
+                if (depth == 0):
                     start_index = i
                 depth += 1
-            elif char == '}':
+            elif (char == '}'):
                 depth -= 1
-                if depth == 0:
+                if (depth == 0):
                     end_index = i + 1
                     try:
                         json_obj = json.loads(json_string[start_index:end_index])
@@ -136,18 +119,15 @@ class AuthProxy:
 
     async def save_to_elasticsearch(self, flow: http.HTTPFlow):
         ctx.log.info("url: " + flow.request.url)
-        if "complet"  in flow.request.url or "telemetry"  in flow.request.url:
-            
+        if "complet" in flow.request.url or "telemetry" in flow.request.url:
             username = self.proxy_authorizations.get(flow.client_conn.address[0])
             timeconsumed = round((flow.response.timestamp_end - flow.request.timestamp_start) * 1000, 2)
-            timeconsumed_str = f"{timeconsumed}ms"  # Add "ms" to the end of the timeconsumed string
-            
+            timeconsumed_str = f"{timeconsumed}ms"
             ctx.log.info(username + ":\t consumed time: " + timeconsumed_str + str(flow.request.headers.get("x-request-id")))
-            # 将请求和响应存储到Elasticsearch
             doc = {
                 'user': username,
                 "timestamp": datetime.utcnow().isoformat(),
-                "proxy-time-consumed": timeconsumed_str,  # Use the modified timeconsumed string
+                "proxy-time-consumed": timeconsumed_str,
                 'request': {
                     'url': flow.request.url,
                     'method': flow.request.method,
@@ -160,13 +140,12 @@ class AuthProxy:
                     'content': flow.response.content.decode('utf-8', 'ignore'),
                 }
             }
-            if "complet"  in flow.request.url:
+            if "complet" in flow.request.url:
                 index_func = functools.partial(es.index, index='mitmproxy', body=doc)
                 await self.loop.run_in_executor(None, index_func)
             else:
                 request_content = flow.request.content.decode('utf-8', 'ignore')
                 json_objects = await self.split_jsons(request_content)
-
                 for obj in json_objects:
                     ctx.log.info("obj: ===" + str(obj))
                     baseDataName = obj.get("data").get("baseData").get("name")
@@ -178,13 +157,13 @@ class AuthProxy:
                         if "hown" in baseDataName:
                             shown_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
                             shown_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
-                        else: 
+                        else:
                             accepted_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
                             accepted_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
                         doc = {
                             'user': username,
                             "timestamp": datetime.utcnow().isoformat(),
-                            "proxy-time-consumed": timeconsumed_str,  # Use the modified timeconsumed string
+                            "proxy-time-consumed": timeconsumed_str,
                             'request': {
                                 'url': flow.request.url,
                                 'baseData': baseDataName,
@@ -205,7 +184,6 @@ class AuthProxy:
                         index_func = functools.partial(es.index, index='telemetry', body=doc)
                         await self.loop.run_in_executor(None, index_func)
 
-# 添加插件
 addons = [
     AuthProxy()
 ]
