@@ -75,3 +75,28 @@ certutil -addstore root mitmproxy-ca-cert.cer
 * Http:Proxy 采用如下格式：*http://用户名:密码@代理服务器地址:代理服务器端口*
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
 
+### 配置Azure AD集成
+
+1. 在Azure门户中注册一个新的应用程序，并记下应用程序(客户端)ID、目录(租户)ID和客户端密码。
+
+2. 在`proxy-es.py`文件中，设置以下Azure AD配置参数：
+```python
+TENANT_ID = "your_tenant_id"
+CLIENT_ID = "your_client_id"
+CLIENT_SECRET = "your_client_secret"
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPE = ["User.Read"]
+```
+
+3. 确保在`Dockerfile`中安装了`msal`库：
+```dockerfile
+RUN pip install msal
+```
+
+4. 构建并运行Docker容器：
+```
+docker build . -t mitmproxy-copilot:v1
+docker run -d --net="host" mitmproxy-copilot:v1 -v ./proxy-es.py:/app/proxy-es.py
+```
+
+5. 现在，代理服务器将使用Azure AD进行身份验证。

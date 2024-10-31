@@ -18,6 +18,13 @@ spec:
         volumeMounts:
         - name: mitmproxy-volume
           mountPath: /app
+        env:
+        - name: TENANT_ID
+          value: "your_tenant_id"
+        - name: CLIENT_ID
+          value: "your_client_id"
+        - name: CLIENT_SECRET
+          value: "your_client_secret"
       volumes:
       - name: mitmproxy-volume
         persistentVolumeClaim:
