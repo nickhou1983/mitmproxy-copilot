@@ -15,6 +15,22 @@ spec:
       containers:
       - name: mitmproxy-ha
         image: demoacrcn.azurecr.cn/mitmproxy:v25
+        env:
+        - name: AZURE_AD_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: azure-ad-secret
+              key: client-id
+        - name: AZURE_AD_TENANT_ID
+          valueFrom:
+            secretKeyRef:
+              name: azure-ad-secret
+              key: tenant-id
+        - name: AZURE_AD_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: azure-ad-secret
+              key: client-secret
         volumeMounts:
         - name: mitmproxy-volume
           mountPath: /app

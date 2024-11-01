@@ -75,3 +75,56 @@ certutil -addstore root mitmproxy-ca-cert.cer
 * Http:Proxy 采用如下格式：*http://用户名:密码@代理服务器地址:代理服务器端口*
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
 
+### Azure AD 身份验证设置
+
+1. 在 Azure 门户中注册一个新的应用程序，并记下应用程序(客户端)ID、目录(租户)ID 和 客户端密钥。
+
+2. 在 `aks-deployment.yaml` 文件中添加以下环境变量：
+```
+env:
+- name: AZURE_AD_CLIENT_ID
+  valueFrom:
+    secretKeyRef:
+      name: azure-ad-secret
+      key: client-id
+- name: AZURE_AD_TENANT_ID
+  valueFrom:
+    secretKeyRef:
+      name: azure-ad-secret
+      key: tenant-id
+- name: AZURE_AD_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: azure-ad-secret
+      key: client-secret
+```
+
+3. 在 `proxy-es.py` 文件中配置 Azure AD 身份验证：
+```python
+import msal
+
+AZURE_AD_CLIENT_ID = os.getenv("AZURE_AD_CLIENT_ID")
+AZURE_AD_TENANT_ID = os.getenv("AZURE_AD_TENANT_ID")
+AZURE_AD_CLIENT_SECRET = os.getenv("AZURE_AD_CLIENT_SECRET")
+AZURE_AD_AUTHORITY = f"https://login.microsoftonline.com/{AZURE_AD_TENANT_ID}"
+AZURE_AD_SCOPE = ["User.Read"]
+
+self.msal_app = msal.ConfidentialClientApplication(
+    AZURE_AD_CLIENT_ID,
+    authority=AZURE_AD_AUTHORITY,
+    client_credential=AZURE_AD_CLIENT_SECRET,
+)
+
+result = self.msal_app.acquire_token_for_client(scopes=AZURE_AD_SCOPE)
+if "access_token" in result:
+    ctx.log.info("Authenticated with Azure AD: " + username)
+else:
+    ctx.log.info("Azure AD authentication failed for user: " + username)
+    flow.response = http.Response.make(401)
+    return
+```
+
+4. 在 `Dockerfile` 中安装 `msal` 库：
+```
+RUN pip install msal
+```
