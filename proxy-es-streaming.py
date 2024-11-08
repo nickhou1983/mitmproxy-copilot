@@ -11,6 +11,7 @@ from mitmproxy import ctx,http
 import json
 import functools
 from elasticsearch import Elasticsearch
+import urllib.parse
 
 ELASTICSEARCH_URL = "http://xxxx:9200/"
 #ELASTICSEARCH_URL = "http://es-test-es-http-ext:9200/"
