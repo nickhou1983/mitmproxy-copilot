@@ -1,5 +1,5 @@
 # 使用官方的mitmproxy镜像作为基础镜像
-FROM mitmproxy/mitmproxy:10.0.0
+FROM mitmproxy/mitmproxy
 
 # 安装任何额外的依赖项（如果需要）
 RUN pip install mitmproxy elasticsearch asyncio redis

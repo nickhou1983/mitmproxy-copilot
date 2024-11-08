@@ -12,15 +12,21 @@
 
 1. Dockerfile 用于生成 mitmproxy-copilot 镜像；
 2. proxy-es.py 用于在mitmproxy中使用elasticsearch存储数据，可以通过此脚本对mitmproxy进行扩展；
-3. creds.txt 用于存储用户名和密码，用于mitmproxy的认证，和记录访问的用户名；
+3. Redis 用于存储用户名和密码，用于mitmproxy的认证，和记录访问的用户名；
 4. 可以通过对proxy-es.py进行修改，实现更多的功能；
+
+## 已知问题
+
+1. 密码为数字，或数字和字母组合，请不要包含特殊字符，否则可能会导致mitmproxy无法启动；
+2. 代理服务器会首先缓存Copilot Chat响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；
+3. 代理服务器仅支持基本身份验证，需在Redis中配置用户名和密码；
 
 ## 代理服务器支持捕获的域名说明
 | 捕获的域名 | 用途 | 内容 | 延时影响 | 说明 |
 | --- | --- | --- | --- | --- |
-| Api.githubcopilot.com| Github Copilot Chat | Chat 请求和响应内容 | 启用：首字符返回延时平均在5-10s；关闭：首字符返回延时平均在1-2s | 启用此URL流量捕获后，代理服务器会首先缓存Copilot Chat响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
-| Copilot-proxy.githubusercontent.com | IDE Completion（代码补全等） | IDE Editor中请求和响应内容 | 基本无影响 | 启用此URL流量捕获后，代理服务器会首先缓存Copilot IDE Completion响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
-| Copilot-Telemetry.githubusercontent.com/Copilot-Telemetry-Service.githubusercontent.com | Github Copilot 遥测数据 | IDE Completion ：代码建议行数/代码接受行数 | 不适用 | 当前不支持Copilot Chat 的遥测数据 |
+| api.business.githubcopilot.com,api.enterprise.githubcopilot.com| Github Copilot Chat | Chat 请求和响应内容 | 启用：首字符返回延时平均在5-10s；关闭：首字符返回延时平均在1-2s | 启用此URL流量捕获后，代理服务器会首先缓存Copilot Chat响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
+| proxy.business.githubcopilot.com,proxy.enterprise.githubcopilot.com | IDE Completion（代码补全等） | IDE Editor中请求和响应内容 | 基本无影响 | 启用此URL流量捕获后，代理服务器会首先缓存Copilot IDE Completion响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
+| Copilot-Telemetry.githubusercontent.com,Copilot-Telemetry-Service.githubusercontent.com,telemetry.business.githubcopilot.com,telemetry.enterprise.githubcopilot.com | Github Copilot 遥测数据 | IDE Completion ：代码建议行数/代码接受行数 | 不适用 | 当前不支持Copilot Chat 的遥测数据 |
 
 ## 部署架构
 
@@ -55,9 +61,7 @@ docker build . -t mitmproxy-copilot:v1
 ```
 docker run -d --net="host" mitmproxy-copilot:v1 -v ./creds.txt:/app/creds.txt -v ./proxy-es.py:/app/proxy-es.py
 ```
-### 已知问题
 
-1. 密码为数字，或数字和字母组合，请不要包含特殊字符，否则可能会导致mitmproxy无法启动；
 
 ### 代理高可用部署
 
