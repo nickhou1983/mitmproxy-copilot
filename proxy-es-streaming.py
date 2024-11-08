@@ -16,7 +16,7 @@ ELASTICSEARCH_URL = "http://xxxx:9200/"
 #ELASTICSEARCH_URL = "http://es-test-es-http-ext:9200/"
 ELASTICSEARCH_USERNAME = "xxxx"
 ELASTICSEARCH_PASSWORD = "xxxx"
-
+EMU_LOGIN_SUFFIX = "_xxx"
 es = Elasticsearch(
     [ELASTICSEARCH_URL],
     # use_ssl=False,
@@ -204,6 +204,20 @@ class StreamSaver:
     def done(self):
         # ctx.log.info("done: \t" + self.direction)
         # ctx.log.info("done: \t" + self.content)
+        if self.url == "https://github.com/session":
+            ctx.log.info("done: \t" + self.content)
+            request_body = self.content
+            # 输出请求体
+            ctx.log.info("Request body: " + str(request_body))
+            parsed_body = urllib.parse.parse_qs(request_body)
+            login_value = parsed_body.get('login', [''])[0]
+            ctx.log.info("login value1: " + login_value)
+            #if login_value contains _hdkj
+            if not login_value.endswith(EMU_LOGIN_SUFFIX):
+                self.flow.response = http.Response.make(403, b"Forbidden", {"Content-Type": "text/html"})
+                self.flow.kill()
+                return
+        
         asyncio.ensure_future(self.save_to_elasticsearch(self.ip, self.url, self.method, self.headers, self.content, self.direction,self.connectionid, self.username))
         if self.fh:
             self.fh = False
