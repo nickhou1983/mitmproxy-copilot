@@ -171,13 +171,13 @@ class StreamSaver:
                     shown_charLens = 0
                     # ctx.log.info("baseDataName: === " + baseDataName)
                     # ctx.log.info("obj: ===" + str(obj))
-                    if "hown" in baseDataName or "accepted" in baseDataName:
-                        if "hown" in baseDataName:
+                    if "shown" in baseDataName or "ccepted" in baseDataName:
+                        if "shown" in baseDataName:
                             shown_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
-                            shown_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
+                            shown_charLens = obj.get("data").get("baseData").get("measurements").get("documentLength")
                         else: 
                             accepted_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
-                            accepted_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
+                            accepted_charLens = obj.get("data").get("baseData").get("measurements").get("documentLength")
                         doc = {
                             'user': username,
                             'user_ip': ip,
