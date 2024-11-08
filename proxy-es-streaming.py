@@ -43,6 +43,9 @@ allowed_patterns = [
      "https://copilot-telemetry-service.githubusercontent.com/.*",
      "https://copilot-telemetry.githubusercontent.com/.*",
      "https://api.github.com/teams/.*",
+     r"^https://([a-zA-Z0-9-]+\.)*githubcopilot\.com/.*",
+     r"^https://([a-zA-Z0-9-]+\.)*business\.githubcopilot\.com/.*",
+     r"^https://([a-zA-Z0-9-]+\.)*enterprise\.githubcopilot\.com/.*"
     #  "https://api.github.com/.*"
 ]
 
