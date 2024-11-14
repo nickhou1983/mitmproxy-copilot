@@ -66,8 +66,8 @@ class AuthProxy:
         self.loop = asyncio.get_event_loop()
         self.proxy_authorizations = {} 
         self.credentials = self.load_credentials("creds.txt")
-        self.azure_credential = DefaultAzureCredential()
-        self.key_vault_url = "https://<your-key-vault-name>.vault.azure.net/"
+        self.azure_credential = self.get_azure_credential()
+        self.key_vault_url = os.getenv("AZURE_KEY_VAULT_URL")
         self.secret_client = SecretClient(vault_url=self.key_vault_url, credential=self.azure_credential)
 
     def load_credentials(self, file_path):
@@ -83,6 +83,9 @@ class AuthProxy:
     def get_azure_secret(self, secret_name):
         secret = self.secret_client.get_secret(secret_name)
         return secret.value
+
+    def get_azure_credential(self):
+        return DefaultAzureCredential()
 
     def http_connect(self, flow: http.HTTPFlow):
         proxy_auth = flow.request.headers.get("Proxy-Authorization", "")
@@ -227,5 +230,4 @@ class AuthProxy:
 addons = [
     AuthProxy()
 ]
-
 

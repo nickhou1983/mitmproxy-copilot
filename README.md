@@ -75,3 +75,28 @@ certutil -addstore root mitmproxy-ca-cert.cer
 * Http:Proxy 采用如下格式：*http://用户名:密码@代理服务器地址:代理服务器端口*
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
 
+### Azure AD 集成
+
+#### 配置 Azure AD 集成
+
+1. 设置环境变量
+
+在运行容器之前，设置以下环境变量：
+
+```
+export AZURE_KEY_VAULT_URL="<Your Azure Key Vault URL>"
+export AZURE_CLIENT_ID="<Your Azure Client ID>"
+export AZURE_CLIENT_SECRET="<Your Azure Client Secret>"
+export AZURE_TENANT_ID="<Your Azure Tenant ID>"
+```
+
+2. 运行容器
+
+```
+docker run -d --net="host" -e AZURE_KEY_VAULT_URL -e AZURE_CLIENT_ID -e AZURE_CLIENT_SECRET -e AZURE_TENANT_ID mitmproxy-copilot:v1 -v ./creds.txt:/app/creds.txt -v ./proxy-es.py:/app/proxy-es.py
+```
+
+3. 配置 proxy-es.py
+
+确保 `proxy-es.py` 中的 `key_vault_url` 使用环境变量 `AZURE_KEY_VAULT_URL`，并且 Azure AD 凭据通过 `get_azure_credential` 函数获取。
+
