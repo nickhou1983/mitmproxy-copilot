@@ -1,5 +1,5 @@
 # 使用官方的mitmproxy镜像作为基础镜像
-FROM mitmproxy/mitmproxy
+FROM mitmproxy/mitmproxy:10.0.0
 
 # 安装任何额外的依赖项（如果需要）
 RUN pip install mitmproxy elasticsearch asyncio redis
@@ -16,5 +16,6 @@ RUN pip install mitmproxy elasticsearch asyncio redis
 WORKDIR /app
 
 # 设置mitmproxy的启动命令，使用您的脚本作为参数
-CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false", "--allow-hosts", "^(copilot-telemetry-service\\.githubusercontent\\.com|api\\.business\\.githubcopilot\\.com|api\\.enterprise\\.githubcopilot\\.com|proxy\\.business\\.githubcopilot\\.com|proxy\\.enterprise\\.githubcopilot\\.com|copilot-telemetry\\.githubusercontent\\.com|copilot-proxy\\.githubusercontent\\.com|api\\.github\\.com)$"]
+CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false"]
+
 
