@@ -11,17 +11,16 @@ import redis # 导入Redis
 
 # 通常仅需要修改这里的配置
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
-"""
-ELASTICSEARCH_URL = "https://143.64.161.23:9200/"
+ELASTICSEARCH_URL = "https://4.191.74.252:9200/"
 ELASTICSEARCH_USERNAME = "admin"
-ELASTICSEARCH_PASSWORD = "{You ES Password}"
-"""
+ELASTICSEARCH_PASSWORD = "Qifeng@123.com"
+
 # 添加Redis连接
 REDIS_HOST="demoaksredis.redis.cache.windows.net"
 REDIS_PORT=6379
 REDIS_PASSWORD="LhWvZYgIoPZoGkJne8fsSuSoe3fOwURl7AzCaF5sq0I="
 
-"""
+
 es = Elasticsearch(
     [ELASTICSEARCH_URL],
 # ElasticSearch 不需要验证服务器证书   
@@ -29,7 +28,7 @@ es = Elasticsearch(
 # ElasticSearch 不需要用户名和密码
     http_auth=(ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD),
 )
-"""
+
 
 allowed_patterns = [
      "https://github.com/",
@@ -150,7 +149,7 @@ class AuthProxy:
         if not is_url_allowed(flow.request.url, allowed_patterns):
             flow.response = http.Response.make(403, b"Forbidden", {"Content-Type": "text/html"})
  
-    """
+
     def response(self, flow: http.HTTPFlow):
         # 异步将请求和响应存储到Elasticsearch
         ctx.log.info("response: " + flow.request.url)
@@ -248,7 +247,7 @@ class AuthProxy:
                         }
                         index_func = functools.partial(es.index, index='telemetry', body=doc)
                         await self.loop.run_in_executor(None, index_func)
-    """           
+  
 
 # 添加插件
 addons = [
