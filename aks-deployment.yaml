@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mitmproxy-ha
-        image: demoacrhk.azurecr.io/mitmproxy-allow-hosts:v15
+        image: democrhk.azurecr.io/mitmproxy-steaming:v1
         ports:
         - containerPort: 8080
         volumeMounts:
@@ -26,7 +26,7 @@ spec:
       volumes:
       - name: mitmproxy-app-volume
         persistentVolumeClaim:
-          claimName: mitmproxy-app-pvc  # PVC 名称
+          claimName: mitmproxy-app-pvc-01  # PVC 名称
       - name: mitmproxy-certs-volume
         persistentVolumeClaim:
-          claimName: mitmproxy-certs-pvc  # PVC 名称
+          claimName: mitmproxy-certs-pvc-01  # PVC 名称

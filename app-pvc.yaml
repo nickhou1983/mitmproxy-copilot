@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: mitmproxy-app-pvc  # PVC 名称
+  name: mitmproxy-app-pvc-01 # PVC 名称
 spec:
   accessModes:
     - ReadWriteMany  # 访问模式

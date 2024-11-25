@@ -174,12 +174,10 @@ class AuthProxy:
                     except json.JSONDecodeError as e:
                         print(f"Error decoding JSON: {e}")
         return json_objects
-    """
-
-    """
+  
     async def save_to_elasticsearch(self, flow: http.HTTPFlow):
         ctx.log.info("url: " + flow.request.url)
-        if "complet"  in flow.request.url or "telemetry"  in flow.request.url:
+        if "complet" in flow.request.url or "telemetry" in flow.request.url:
             
             username = self.proxy_authorizations.get(flow.client_conn.address[0])
             timeconsumed = round((flow.response.timestamp_end - flow.request.timestamp_start) * 1000, 2)
@@ -203,8 +201,14 @@ class AuthProxy:
                     'content': flow.response.content.decode('utf-8', 'ignore'),
                 }
             }
-            if "complet"  in flow.request.url:
-                index_func = functools.partial(es.index, index='mitmproxy', body=doc)
+
+            # 按照日期生成索引名称
+            
+            mitmproxy_index_name = f"mitmproxy-{datetime.utcnow().strftime('%Y-%m-%d')}"
+            telemetry_index_name = f"telemetry-{datetime.utcnow().strftime('%Y-%m-%d')}"
+
+            if "complet" in flow.request.url:
+                index_func = functools.partial(es.index, index=mitmproxy_index_name, body=doc)
                 await self.loop.run_in_executor(None, index_func)
             else:
                 request_content = flow.request.content.decode('utf-8', 'ignore')
@@ -245,7 +249,7 @@ class AuthProxy:
                                 'content': flow.response.content.decode('utf-8', 'ignore'),
                             }
                         }
-                        index_func = functools.partial(es.index, index='telemetry', body=doc)
+                        index_func = functools.partial(es.index, index=telemetry_index_name, body=doc)
                         await self.loop.run_in_executor(None, index_func)
   
 

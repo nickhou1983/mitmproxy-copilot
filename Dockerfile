@@ -2,7 +2,7 @@
 FROM mitmproxy/mitmproxy:10.0.0
 
 # 安装任何额外的依赖项（如果需要）
-RUN pip install mitmproxy elasticsearch asyncio redis
+RUN pip install mitmproxy elasticsearch asyncio redis chardet pathlib typing datetime 
 
 # 在生产环境中，建议将配置通过Volume 挂载方式挂载到容器中，这样可以方便的修改配置；
 # 将您的脚本添加到容器中, 建议可以采用docker -v 将脚本挂载到容器中
@@ -16,6 +16,6 @@ RUN pip install mitmproxy elasticsearch asyncio redis
 WORKDIR /app
 
 # 设置mitmproxy的启动命令，使用您的脚本作为参数
-CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false"]
+CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es-stream.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false"]
 
 
