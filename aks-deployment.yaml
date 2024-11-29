@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: mitmproxy-ha
-        image: democrhk.azurecr.io/mitmproxy-steaming:v1
+        image: democrhk.azurecr.io/mitmproxy-allow-hosts:v1
         ports:
         - containerPort: 8080
         volumeMounts:

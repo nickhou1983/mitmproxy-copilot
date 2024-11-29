@@ -11,14 +11,14 @@ import redis # 导入Redis
 
 # 通常仅需要修改这里的配置
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
-ELASTICSEARCH_URL = "https://4.191.74.252:9200/"
+ELASTICSEARCH_URL = "https://20.2.53.237:9200/"
 ELASTICSEARCH_USERNAME = "admin"
 ELASTICSEARCH_PASSWORD = "Qifeng@123.com"
 
 # 添加Redis连接
-REDIS_HOST="demoaksredis.redis.cache.windows.net"
+REDIS_HOST="democopilotredis.redis.cache.windows.net"
 REDIS_PORT=6379
-REDIS_PASSWORD="LhWvZYgIoPZoGkJne8fsSuSoe3fOwURl7AzCaF5sq0I="
+REDIS_PASSWORD="k1wS4jxlRoOGgeK4QXpbHtjve2tB9B4MpAzCaEPKg1A="
 
 
 es = Elasticsearch(
@@ -257,4 +257,5 @@ class AuthProxy:
 addons = [
     AuthProxy()
 ]
+
 
