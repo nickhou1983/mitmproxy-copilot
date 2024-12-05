@@ -24,7 +24,7 @@ import os
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
 ELASTICSEARCH_URL = "https://20.2.53.237:9200/"
 ELASTICSEARCH_USERNAME = "admin"
-ELASTICSEARCH_PASSWORD = "Qifeng@123.com"
+ELASTICSEARCH_PASSWORD = {}
 
 es = Elasticsearch(
     [ELASTICSEARCH_URL],
@@ -39,7 +39,7 @@ es = Elasticsearch(
 
 REDIS_HOST="democopilotredis.redis.cache.windows.net"
 REDIS_PORT=6379
-REDIS_PASSWORD="k1wS4jxlRoOGgeK4QXpbHtjve2tB9B4MpAzCaEPKg1A="
+REDIS_PASSWORD={}
 
 # 定义允许域名列表
 
