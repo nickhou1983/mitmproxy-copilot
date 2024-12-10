@@ -12,8 +12,7 @@
 
 1. Dockerfile 用于生成 mitmproxy-copilot 镜像；
 2. proxy-es.py 用于在mitmproxy中使用elasticsearch存储数据，可以通过此脚本对mitmproxy进行扩展；
-3. creds.txt 用于存储用户名和密码，用于mitmproxy的认证，和记录访问的用户名；
-4. 可以通过对proxy-es.py进行修改，实现更多的功能；
+3. 可以通过对proxy-es.py进行修改，实现更多的功能；
 
 
 
@@ -47,7 +46,7 @@ docker build . -t mitmproxy-copilot:v1
 
 3. 运行容器
 ```
-docker run -d --net="host" mitmproxy-copilot:v1 -v ./creds.txt:/app/creds.txt -v ./proxy-es.py:/app/proxy-es.py
+docker run -d --net="host" mitmproxy-copilot:v1 -v ./proxy-es.py:/app/proxy-es.py
 ```
 ### 已知问题
 
@@ -74,4 +73,8 @@ certutil -addstore root mitmproxy-ca-cert.cer
 
 * Http:Proxy 采用如下格式：*http://用户名:密码@代理服务器地址:代理服务器端口*
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
+
+### 身份验证
+
+此代理服务器支持通过Azure AD和OIDC进行身份验证。请确保在配置文件中正确设置了Azure AD和OIDC的相关信息。
 
