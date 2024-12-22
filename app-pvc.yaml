@@ -9,3 +9,4 @@ spec:
   resources:
     requests:
       storage: 5Gi  # 请求的存储大小
+

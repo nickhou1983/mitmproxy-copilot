@@ -30,3 +30,4 @@ spec:
       - name: mitmproxy-certs-volume
         persistentVolumeClaim:
           claimName: mitmproxy-certs-pvc-01  # PVC 名称
+          
