@@ -50,11 +50,6 @@ allowed_patterns = [
      "https://api.github.com/.*"
 ]
 
-# 身份验证函数
-# def authenticate(username, password):
-#     # 在这里实现你的身份验证逻辑
-#     # 返回True表示验证通过，False表示验证失败
-#     return username == password
 def is_url_allowed(url: str) -> bool:
     for pattern in allowed_patterns:
         if re.match(pattern, url):
@@ -65,20 +60,9 @@ class AuthProxy:
     def __init__(self):
         self.loop = asyncio.get_event_loop()
         self.proxy_authorizations = {} 
-        self.credentials = self.load_credentials("creds.txt")
         self.azure_credential = DefaultAzureCredential()
         self.key_vault_url = "https://<your-key-vault-name>.vault.azure.net/"
         self.secret_client = SecretClient(vault_url=self.key_vault_url, credential=self.azure_credential)
-
-    def load_credentials(self, file_path):
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Credentials file '{file_path}' not found")
-        creds = {}
-        with open(file_path, "r") as f:
-            for line in f:
-                username, password = line.strip().split(",")
-                creds[username] = password
-        return creds
 
     def get_azure_secret(self, secret_name):
         secret = self.secret_client.get_secret(secret_name)
@@ -98,25 +82,17 @@ class AuthProxy:
         auth_string = base64.b64decode(auth_string).decode("utf-8")
         username, password = auth_string.split(":")
         ctx.log.info("User: " + username + " Password: " + password)
-        # 验证用户名和密码
-        if username in self.credentials:
-            # If the username exists, check if the password is correct
-            if self.credentials[username] != password:
+        # Check Azure AD for the username
+        try:
+            azure_password = self.get_azure_secret(username)
+            if azure_password != password:
                 ctx.log.info("User: " + username + " attempted to log in with an incorrect password.")
                 flow.response = http.Response.make(401)
                 return
-        else:
-            # Check Azure AD for the username
-            try:
-                azure_password = self.get_azure_secret(username)
-                if azure_password != password:
-                    ctx.log.info("User: " + username + " attempted to log in with an incorrect password.")
-                    flow.response = http.Response.make(401)
-                    return
-            except Exception as e:
-                ctx.log.info("Azure AD authentication failed for user: " + username)
-                flow.response = http.Response.make(401)
-                return
+        except Exception as e:
+            ctx.log.info("Azure AD authentication failed for user: " + username)
+            flow.response = http.Response.make(401)
+            return
         ctx.log.info("Authenticated: " + flow.client_conn.address[0])
         self.proxy_authorizations[(flow.client_conn.address[0])] = username
     
@@ -227,5 +203,4 @@ class AuthProxy:
 addons = [
     AuthProxy()
 ]
-
 
