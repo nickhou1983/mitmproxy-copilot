@@ -3,7 +3,6 @@ from mitmproxy import http,ctx,connection,proxy
 from elasticsearch import Elasticsearch
 from datetime import datetime
 import base64
-import re
 import os
 import json
 import functools
@@ -13,12 +12,12 @@ import redis # 导入Redis
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
 ELASTICSEARCH_URL = "https://20.2.53.237:9200/"
 ELASTICSEARCH_USERNAME = "admin"
-ELASTICSEARCH_PASSWORD = {}
+ELASTICSEARCH_PASSWORD = "P@ssw0rddt01!"
 
 # 添加Redis连接
-REDIS_HOST="democopilotredis.redis.cache.windows.net"
-REDIS_PORT=6379
-REDIS_PASSWORD={}
+REDIS_HOST="democopilotredis.eastasia.redis.azure.net"
+REDIS_PORT=10000
+REDIS_PASSWORD= "JbKWL2gaCnk7Xi3NoiTmeBXWU3L5VtxJBAzCaMwBiuw="
 
 
 es = Elasticsearch(
@@ -30,82 +29,7 @@ es = Elasticsearch(
 )
 
 
-allowed_patterns = [
-     "https://github.com/",
-     "https://api.githubcopilot.com/.*",
-     "https://raw.githubusercontent.com/.*",
-     "https://github.com/login.*",
-     "https://github.com/settings/two_factor_checkup.*",
-     "https://github.com/favicon.ico",
-     "https://github.com/session",
-     "https://github.com/sessions.*",
-     "https://github.githubassets.com/assets.*",
-     "https://education.github.com/api/user",
-     "https://default.exp-tas.com",
-     "https://default.exp-tas.com/vscode/ab",
-     "https://copilot-telemetry.githubusercontent.com/telemetry",
-     "https://copilot-proxy.githubusercontent.com",
-     "https://origin-tracker.githubusercontent.com",
-     "https:\/\/[\w.-]*\.githubcopilot\.com(\/.*)?",
-     "https://api.github.com/.*",
-     "https:\/\/[\w.-]*\.business\.githubcopilot\.com",
-     "https:\/\/[\w.-]*\.enterprise\.githubcopilot\.com",
-     "https://az764295.vo.msecnd.net/.*",
-     "https://code.visualstudio.com/.*",
-     "https://dc.services.visualstudio.com/.*",
-     "https://github.com/microsoft/.*",
-     "https://marketplace.visualstudio.com/.*",
-     "https://mobile.events.data.microsoft.com/.*",
-     "https://update.code.visualstudio.com/.*",
-     "https://vscode.download.prss.microsoft.com/.*",
-     "https://vscodeexperiments.azureedge.net/.*",
-     "https://avatars.githubusercontent.com/.*",
-     "https:\/\/[\w.-]*\.vscode-cdn\.net(\/.*)?",
-     "https:\/\/[\w.-]*\.gallerycdn\.vsassets\.io(\/.*)?",
-     "https:\/\/[\w.-]*\.gallery\.vsassets\.io(\/.*)?",
-     "https://.*.gallery.vsassets.io/.*",
-     "https://.*.gallerycdn.vsassets.io/.*",
-     "https://.*.githubcopilot.com/.*",
-     "https://vscode.dev/.*",
-     "https://vscode-sync.trafficmanager.net/.*",
-     "https://vscode-sync-insiders.trafficmanager.net/.*",
-     "https://[\w.-]*\.vscode-unpkg\.net(\/.*)?"
-]
 
-
-def is_url_allowed(url: str, allowed_patterns) -> bool:
-    """
-    Checks if a given URL matches any of the allowed patterns.
-
-    Args:
-        url (str): The URL to be checked.
-        allowed_patterns (list): A list of regex patterns to match the URL against.
-
-    Returns:
-        bool: True if the URL matches any of the allowed patterns, False otherwise.
-    """
-    for pattern in allowed_patterns:
-        if re.match(pattern, url):
-            return True
-    return False
-
-auth_whitelist_url = [
-    "api.github.com.*",
-    "api.enterprise.githubcopilot.com.*",
-    "api.busniess.githubcopilot.com.*",
-    "update.code.visualstudio.com.*",
-    "dc.services.visualstudio.com.*",
-    "default.exp-tas.com.*",
-    "marketplace.visualstudio.com.*",
-    "mobile.events.data.microsoft.com.*",
-    "embeddings.vscode-cdn.net.*",
-    "avatars.githubusercontent.com.*",
-    "api.githubcopilot.com.*",
-    "*.gallerycdn.vsassets.io.*",
-    "az764295.vo.msecnd.net.*",
-    "github.gallery.vsassets.io.*",
-
-]
 
 class AuthProxy:
     def __init__(self):
@@ -115,12 +39,7 @@ class AuthProxy:
     
     def http_connect(self, flow: http.HTTPFlow):
         proxy_auth = flow.request.headers.get("Proxy-Authorization", "")
-        # 如果没有代理授权，或者URL不在白名单中，返回401
-        url = flow.request.pretty_url
-        if not proxy_auth and not is_url_allowed(url, auth_whitelist_url):
-            ctx.log.info("Proxy-Authorization: 401 failed " + url)
-            flow.response = http.Response.make(401)
-
+        
         ctx.log.info("Proxy-Authorization: " + proxy_auth.strip())
 
         if proxy_auth.strip() == "" :
@@ -149,8 +68,7 @@ class AuthProxy:
             self.proxy_authorizations[(flow.client_conn.address[0])] = username
         
     def request(self, flow: http.HTTPFlow):
-        if not is_url_allowed(flow.request.url, allowed_patterns):
-            flow.response = http.Response.make(403, b"Forbidden", {"Content-Type": "text/html"})
+        pass
  
 
     def response(self, flow: http.HTTPFlow):
