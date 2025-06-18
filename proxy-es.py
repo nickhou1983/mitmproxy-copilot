@@ -9,7 +9,9 @@ import functools
 import redis # 导入Redis
 
 # 通常仅需要修改这里的配置
+
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
+
 ELASTICSEARCH_URL = "https://20.2.53.237:9200/"
 ELASTICSEARCH_USERNAME = "admin"
 ELASTICSEARCH_PASSWORD = "P@ssw0rddt01!"
@@ -40,32 +42,24 @@ class AuthProxy:
     def http_connect(self, flow: http.HTTPFlow):
         proxy_auth = flow.request.headers.get("Proxy-Authorization", "")
         
-        ctx.log.info("Proxy-Authorization: " + proxy_auth.strip())
-
-        if proxy_auth.strip() == "" :
-            self.proxy_authorizations[(flow.client_conn.id)] = ""
-            # flow.response = http.Response.make(401)
+        # 如果验证头为空，记录为匿名用户
+        if proxy_auth.strip() == "":
+            ctx.log.info("Anonymous connection from: " + flow.client_conn.address[0])
+            self.proxy_authorizations[(flow.client_conn.address[0])] = "anonymous"
             return
-        auth_type, auth_string = proxy_auth.split(" ", 1)
-        auth_string = base64.b64decode(auth_string).decode("utf-8")
-        username, password = auth_string.split(":")
-        ctx.log.info("User: " + username + " Password: " + password)
-
-        # 从Redis中校验用户名和密码
-        stored_password = self.redis_client.get(username)
-        print(stored_password)
-        if stored_password is None:
-            # 如果用户名不存在
-            ctx.log.info("Username: " + username + " does not exist.")
-            flow.response = http.Response.make(401)
-        elif stored_password != password:
-            # 如果密码不正确
-            ctx.log.info("User: " + username + " attempted to log in with an incorrect password.")
-            flow.response = http.Response.make(401)
-        else:
-            # 认证成功
-            ctx.log.info("Authenticated: " + flow.client_conn.address[0])
+            
+        # 如果验证头不为空，提取用户名但不验证密码
+        try:
+            auth_type, auth_string = proxy_auth.split(" ", 1)
+            auth_string = base64.b64decode(auth_string).decode("utf-8")
+            username = auth_string.split(":", 1)[0]  # 只获取用户名部分
+            ctx.log.info("User: " + username + " connected from " + flow.client_conn.address[0])
+            # 记录用户名，但不进行验证
             self.proxy_authorizations[(flow.client_conn.address[0])] = username
+        except Exception as e:
+            # 如果解析失败，记录为匿名用户
+            ctx.log.info(f"Error parsing authorization: {e}")
+            self.proxy_authorizations[(flow.client_conn.address[0])] = "anonymous"
         
     def request(self, flow: http.HTTPFlow):
         pass
@@ -104,7 +98,7 @@ class AuthProxy:
             timeconsumed = round((flow.response.timestamp_end - flow.request.timestamp_start) * 1000, 2)
             timeconsumed_str = f"{timeconsumed}ms"  # Add "ms" to the end of the timeconsumed string
             
-            ctx.log.info(username + ":\t consumed time: " + timeconsumed_str + str(flow.request.headers.get("x-request-id")))
+            # ctx.log.info(username + ":\t consumed time: " + timeconsumed_str + str(flow.request.headers.get("x-request-id")))
             # 将请求和响应存储到Elasticsearch
             doc = {
                 'user': username,
