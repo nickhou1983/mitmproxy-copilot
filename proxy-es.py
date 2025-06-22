@@ -17,9 +17,9 @@ ELASTICSEARCH_USERNAME = "admin"
 ELASTICSEARCH_PASSWORD = "P@ssw0rddt01!"
 
 # 添加Redis连接
-REDIS_HOST="democopilotredis.eastasia.redis.azure.net"
-REDIS_PORT=10000
-REDIS_PASSWORD= "JbKWL2gaCnk7Xi3NoiTmeBXWU3L5VtxJBAzCaMwBiuw="
+# REDIS_HOST="democopilotredis.eastasia.redis.azure.net"
+# REDIS_PORT=10000
+# REDIS_PASSWORD= "JbKWL2gaCnk7Xi3NoiTmeBXWU3L5VtxJBAzCaMwBiuw="
 
 
 es = Elasticsearch(
@@ -37,7 +37,7 @@ class AuthProxy:
     def __init__(self):
         self.loop = asyncio.get_event_loop()
         self.proxy_authorizations = {}
-        self.redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True) 
+        # self.redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True) 
     
     def http_connect(self, flow: http.HTTPFlow):
         proxy_auth = flow.request.headers.get("Proxy-Authorization", "")
