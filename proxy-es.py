@@ -45,7 +45,7 @@ class AuthProxy:
         # 如果验证头为空，记录为匿名用户
         if proxy_auth.strip() == "":
             ctx.log.info("Anonymous connection from: " + flow.client_conn.address[0])
-            self.proxy_authorizations[(flow.client_conn.address[0])] = "anonymous"
+            self.proxy_authorizations[(flow.client_conn.address[0])] = flow.client_conn.address[0]  # 记录IP地址作为用户名
             return
             
         # 如果验证头不为空，提取用户名但不验证密码
@@ -59,7 +59,7 @@ class AuthProxy:
         except Exception as e:
             # 如果解析失败，记录为匿名用户
             ctx.log.info(f"Error parsing authorization: {e}")
-            self.proxy_authorizations[(flow.client_conn.address[0])] = "anonymous"
+            self.proxy_authorizations[(flow.client_conn.address[0])] = flow.client_conn.address[0]  # 记录IP地址作为用户名
         
     def request(self, flow: http.HTTPFlow):
         pass
