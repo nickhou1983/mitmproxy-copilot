@@ -6,6 +6,8 @@
 1. 记录开发者通过代理服务器上传到Github Copilot的代码片段上下文和生成的代码片段；
 2. 用于记录通过开发者的活动信息；
 3. 用于记录开发者的代码生成和接受数据；
+4. 提取用户消息并保存到日志文件和Elasticsearch；
+5. 使用Azure OpenAI批处理API对用户消息进行批量处理，并将结果保存到Elasticsearch索引 `chat-output-YYYY-MM-DD`。
 
 
 为了简化 mitmproxy 的使用，建议通过容器化部署 mitmproxy-copilot，这样可以避免因为 mitmproxy 的版本不同导致的问题。
@@ -43,6 +45,17 @@
 
 
 ## 使用方法
+
+### Azure OpenAI批处理与Elasticsearch集成
+
+为了处理用户聊天历史，提供了Azure OpenAI批处理与Elasticsearch集成功能，详见 [README_batch.md](README_batch.md)。
+
+此功能可以：
+- 将聊天日志文件转换为批处理输入格式
+- 上传到Azure OpenAI并创建批处理任务
+- 自动监控任务状态并下载结果
+- 将结果保存到Elasticsearch索引 `chat-output-YYYY-MM-DD`
+- 支持通过意图分类分析用户查询
 
 ### 通过容器化部署 mitmproxy-copilot
 
@@ -86,3 +99,57 @@ certutil -addstore root mitmproxy-ca-cert.cer
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
 
 3. 启用代理后，IDE会通过代理服务器访问Github Copilot Chat，代理服务器会记录请求和响应内容；
+
+## 批处理功能说明
+
+### 提取用户消息
+`proxy-es.py` 脚本会从HTTP请求中提取最后一条用户消息，并将其保存到：
+- 按日期命名的JSONL文件 (`chat-YYYY-MM-DD.jsonl`)
+- Elasticsearch索引 (`chat-YYYY-MM-DD`)
+
+### 生成批处理输入
+`generate_batch_input.py` 脚本用于生成Azure OpenAI批处理API的输入文件，并可选择执行完整的批处理工作流：
+
+```bash
+# 使用方法:
+# 1. 自动检测并执行:
+python generate_batch_input.py
+# (如果存在当天的chat-input-YYYY-MM-DD.jsonl文件，自动执行批处理流程；否则只进行文件转换)
+
+# 2. 仅转换文件:
+python generate_batch_input.py [输入文件] [输出文件] [模型名称]
+
+# 3. 完整批处理流程 (转换、上传、创建任务、监控、下载结果):
+python generate_batch_input.py [输入文件] [输出文件] [模型名称] [API密钥] [API端点] [部署ID]
+
+# 4. 根据output_file_id直接下载结果文件:
+python generate_batch_input.py --download-output [output_file_id] [API密钥] [API端点] [部署ID]
+```
+
+#### 默认参数:
+- 输入文件: chat-当前日期.jsonl
+- 输出文件: chat-input-当前日期.jsonl
+- 模型名称: gpt-4o-mini
+- API密钥: 从环境变量AZURE_OPENAI_API_KEY获取
+- API端点: 从环境变量AZURE_OPENAI_ENDPOINT获取
+- 部署ID: 从环境变量AZURE_OPENAI_DEPLOYMENT_ID获取
+
+#### 环境变量配置:
+```bash
+export AZURE_OPENAI_API_KEY="your-api-key"
+export AZURE_OPENAI_ENDPOINT="https://your-endpoint.openai.azure.com"
+export AZURE_OPENAI_DEPLOYMENT_ID="your-deployment-id"
+```
+
+#### 批处理功能:
+1. 判断是否存在今天的Chat-input文件，如果不存在，则生成对应文件
+2. 如果存在今天的Chat-input文件，自动执行完整批处理流程（无需额外参数）
+3. 使用Azure OpenAI批处理API处理用户消息
+4. 每隔120秒自动检查批处理任务状态
+5. 任务完成后自动下载结果文件
+6. 支持通过output_file_id直接下载批处理结果文件
+
+#### 依赖安装:
+```bash
+pip install -r requirements.txt
+```

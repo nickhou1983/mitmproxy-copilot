@@ -6,7 +6,7 @@ import base64
 import os
 import json
 import functools
-import redis # 导入Redis
+# import redis # 导入Redis
 
 # 通常仅需要修改这里的配置
 
@@ -89,9 +89,179 @@ class AuthProxy:
                     except json.JSONDecodeError as e:
                         print(f"Error decoding JSON: {e}")
         return json_objects
-  
+        
+    async def extract_user_messages(self, content):
+        """Extract messages with role 'user' from the content, keeping only the last one"""
+        user_messages = []
+        try:
+            # Try to parse the entire content as JSON
+            json_content = json.loads(content)
+            
+            # Check if the content is an object with messages
+            if isinstance(json_content, dict):
+                # Check if there's a messages list
+                messages = json_content.get('messages', [])
+                if isinstance(messages, list):
+                    for msg in messages:
+                        if isinstance(msg, dict) and msg.get('role') == 'user':
+                            user_messages.append(msg)
+                            ctx.log.info(f"Found user message in messages array: {msg.get('content', '')[:50]}...")
+                
+                # If there's a direct role field at the top level
+                if json_content.get('role') == 'user':
+                    user_messages.append(json_content)
+                    ctx.log.info(f"Found top-level user message: {json_content.get('content', '')[:50]}...")
+            
+            # Check if the content is a list of messages
+            elif isinstance(json_content, list):
+                for item in json_content:
+                    if isinstance(item, dict) and item.get('role') == 'user':
+                        user_messages.append(item)
+                        ctx.log.info(f"Found user message in list: {item.get('content', '')[:50]}...")
+                        
+        except json.JSONDecodeError:
+            ctx.log.info("Content is not valid JSON, trying to extract JSON objects")
+            # If it's not valid JSON, try to extract individual JSON objects
+            json_objects = await self.split_jsons(content)
+            for obj in json_objects:
+                if isinstance(obj, dict):
+                    # Check if this object is a user message
+                    if obj.get('role') == 'user':
+                        user_messages.append(obj)
+                        ctx.log.info(f"Found user message in split JSON: {obj.get('content', '')[:50]}...")
+                    
+                    # Check if it contains a messages array
+                    messages = obj.get('messages', [])
+                    if isinstance(messages, list):
+                        for msg in messages:
+                            if isinstance(msg, dict) and msg.get('role') == 'user':
+                                user_messages.append(msg)
+                                ctx.log.info(f"Found user message in split JSON messages: {msg.get('content', '')[:50]}...")
+        
+        # Get only the last user message
+        if user_messages:
+            last_user_message = user_messages[-1]
+            ctx.log.info(f"Only keeping the last user message: {last_user_message.get('content', '')[:50]}...")
+            return [last_user_message]  # Return as a list with only the last message
+        else:
+            ctx.log.info("No user messages found")
+            return []
+        
+    async def save_to_file(self, messages):
+        """Save the last user message to a JSONL file with the current date"""
+        if not messages:
+            ctx.log.info("No user message to save")
+            return
+            
+        # Create the filename with current date
+        filename = f"chat-{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+
+        # Append the last message to the file (should be only one in the list)
+        with open(filename, 'a', encoding='utf-8') as f:
+            for msg in messages:
+                f.write(json.dumps(msg, ensure_ascii=False) + '\n')
+                
+        ctx.log.info(f"Saved last user message to {filename}")
+    
+    async def check_for_model(self, content, model_name="gpt-4o-mini"):
+        """Check if the content contains the specified model name using proper JSON parsing"""
+        try:
+            # Try to parse the content as a single JSON object
+            json_content = json.loads(content)
+            if isinstance(json_content, dict) and json_content.get('model') == model_name:
+                return True
+                
+            # Check in messages or other nested structures
+            if isinstance(json_content, dict):
+                # Some common paths where model might be specified
+                if json_content.get('messages') and isinstance(json_content.get('messages'), list):
+                    for msg in json_content.get('messages'):
+                        if isinstance(msg, dict) and msg.get('model') == model_name:
+                            return True
+                
+                # Check for nested model field
+                if 'data' in json_content and isinstance(json_content['data'], dict):
+                    if json_content['data'].get('model') == model_name:
+                        return True
+                        
+            # If content is a list, check each item
+            elif isinstance(json_content, list):
+                for item in json_content:
+                    if isinstance(item, dict) and item.get('model') == model_name:
+                        return True
+                        
+        except json.JSONDecodeError:
+            # If parsing as a single object failed, try to find individual JSON objects
+            json_objects = await self.split_jsons(content)
+            for obj in json_objects:
+                if isinstance(obj, dict) and obj.get('model') == model_name:
+                    return True
+                    
+        # Simple string search as fallback (less reliable but catches some cases)
+        if f'"model":"{model_name}"' in content or f"'model':'{model_name}'" in content:
+            return True
+            
+        return False
+    
     async def save_to_elasticsearch(self, flow: http.HTTPFlow):
         ctx.log.info("url: " + flow.request.url)
+        
+        # Check for x-initiator header value
+        x_initiator = flow.request.headers.get("x-initiator", "")
+        ctx.log.info(f"x-initiator header: {x_initiator}")
+        
+        # Check for openai-intent header value
+        openai_intent = flow.request.headers.get("openai-intent", "")
+        ctx.log.info(f"openai-intent header: {openai_intent}")
+        
+        # New conditions: 
+        # 1. openai_intent != "copilot-ghost" AND x_initiator == "agent"
+        # 2. request.content contains "model":"gpt-4o-mini"
+        
+        # First check the header conditions
+        if openai_intent != "copilot-ghost" and x_initiator.lower() == "agent":
+            # Decode request content
+            request_content = flow.request.content.decode('utf-8', 'ignore')
+            
+            # Check if request contains "model":"gpt-4o-mini"
+            has_target_model = await self.check_for_model(request_content)
+            
+            if has_target_model:
+                ctx.log.info("Conditions met: non-ghost intent, agent initiator, and gpt-4o-mini model")
+                # Extract and save the last user message to JSONL file
+                last_user_message = await self.extract_user_messages(request_content)
+                await self.save_to_file(last_user_message)
+                
+                # Save to ElasticSearch chat-YYYY-MM-DD index
+                if last_user_message:
+                    username = self.proxy_authorizations.get(flow.client_conn.address[0], "unknown")
+                    chat_index_name = f"chat-{datetime.utcnow().strftime('%Y-%m-%d')}"
+                    
+                    chat_doc = {
+                        'user': username,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'message': last_user_message[0],  # Only one message in the list
+                        'url': flow.request.url,
+                        'headers': {
+                            'x-initiator': x_initiator,
+                            'openai-intent': openai_intent
+                        }
+                    }
+                    
+                    try:
+                        index_func = functools.partial(es.index, index=chat_index_name, body=chat_doc)
+                        await self.loop.run_in_executor(None, index_func)
+                        ctx.log.info(f"Saved user message to ElasticSearch index: {chat_index_name}")
+                    except Exception as e:
+                        ctx.log.error(f"Error saving to ElasticSearch chat index: {e}")
+            else:
+                ctx.log.info("Request doesn't contain gpt-4o-mini model, skipping extraction")
+        else:
+            if openai_intent == "copilot-ghost":
+                ctx.log.info("Request has openai-intent: copilot-ghost, skipping extraction")
+            if x_initiator.lower() != "agent":
+                ctx.log.info(f"Request has x-initiator: {x_initiator}, not agent, skipping extraction")
+        
         if "complet" in flow.request.url or "telemetry" in flow.request.url:
             
             username = self.proxy_authorizations.get(flow.client_conn.address[0])

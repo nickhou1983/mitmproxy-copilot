@@ -1,0 +1,4 @@
+mitmproxy>=10.0.0
+elasticsearch>=8.0.0
+requests>=2.25.1
+python-dateutil>=2.8.2

@@ -1,0 +1,12 @@
+{"role": "user", "content": "解释当前文件"}
+{"role": "user", "content": "Suggest a succinct (under 6 words) follow-up message to the last AI-assistant response."}
+{"role": "user", "content": "当前文件建议"}
+{"role": "user", "content": "Suggest a succinct (under 6 words) follow-up message to the last AI-assistant response."}
+{"role": "user", "content": "增加环境变量"}
+{"role": "user", "content": "Suggest a succinct (under 6 words) follow-up message to the last AI-assistant response."}
+{"role": "user", "content": "优化建议"}
+{"role": "user", "content": "Suggest a succinct (under 6 words) follow-up message to the last AI-assistant response."}
+{"role": "user", "content": "当前代码是否存在漏洞"}
+{"role": "user", "content": "Suggest a succinct (under 6 words) follow-up message to the last AI-assistant response."}
+{"role": "user", "content": "代码性能建议"}
+{"role": "user", "content": "Suggest a succinct (under 6 words) follow-up message to the last AI-assistant response."}
