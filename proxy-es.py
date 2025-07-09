@@ -49,6 +49,7 @@ URL_WHITELIST = [
     "*vscode.dev*",
     "*jetbrains.com*",
     "*jbstatic.com*",
+    "https://mitm.it/*",
 ]
 
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
