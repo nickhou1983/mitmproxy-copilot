@@ -6,7 +6,7 @@ import base64
 import os
 import json
 import functools
-import redis # 导入Redis
+# import redis # 导入Redis
 
 # 通常仅需要修改这里的配置
 
@@ -16,10 +16,10 @@ ELASTICSEARCH_URL = "https://20.2.53.237:9200/"
 ELASTICSEARCH_USERNAME = "admin"
 ELASTICSEARCH_PASSWORD = "P@ssw0rddt01!"
 
-# 添加Redis连接
-# REDIS_HOST="democopilotredis.eastasia.redis.azure.net"
+# 添加Redis连接，由于代码中未使用Redis相关功能，暂时注释掉
+# REDIS_HOST="localhost"
 # REDIS_PORT=10000
-# REDIS_PASSWORD= "JbKWL2gaCnk7Xi3NoiTmeBXWU3L5VtxJBAzCaMwBiuw="
+# REDIS_PASSWORD= ""
 
 
 es = Elasticsearch(
@@ -29,8 +29,6 @@ es = Elasticsearch(
 # ElasticSearch 不需要用户名和密码
     http_auth=(ELASTICSEARCH_USERNAME, ELASTICSEARCH_PASSWORD),
 )
-
-
 
 
 class AuthProxy:
@@ -108,12 +106,12 @@ class AuthProxy:
                     'url': flow.request.url,
                     'method': flow.request.method,
                     'headers': dict(flow.request.headers),
-                    'content': flow.request.content.decode('utf-8', 'ignore'),
+                    # 'content': flow.request.content.decode('utf-8', 'ignore'),
                 },
                 'response': {
                     'status_code': flow.response.status_code,
                     'headers': dict(flow.response.headers),
-                    'content': flow.response.content.decode('utf-8', 'ignore'),
+                    # 'content': flow.response.content.decode('utf-8', 'ignore'),
                 }
             }
 
@@ -136,7 +134,7 @@ class AuthProxy:
                     accepted_charLens = 0
                     shown_numLines = 0
                     shown_charLens = 0
-                    if "hown" in baseDataName or "accepted" in baseDataName:
+                    if "hown" in baseDataName or "accepted" in baseDataName or "message" in baseDataName:
                         if "hown" in baseDataName:
                             shown_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
                             shown_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
@@ -152,8 +150,8 @@ class AuthProxy:
                                 'baseData': baseDataName,
                                 'accepted_numLines': accepted_numLines,
                                 'shown_numLines': shown_numLines,
-                                'accepted_charLens': accepted_charLens,
-                                'shown_charLens': shown_charLens,
+                                # 'accepted_charLens': accepted_charLens,
+                                # 'shown_charLens': shown_charLens,
                                 'language': obj.get("data").get("baseData").get("properties").get("languageId"),
                                 'editor': obj.get("data").get("baseData").get("properties").get("editor_version").split("/")[0],
                                 'editor_version': obj.get("data").get("baseData").get("properties").get("editor_version").split("/")[1],
@@ -161,7 +159,7 @@ class AuthProxy:
                             },
                             'response': {
                                 'status_code': flow.response.status_code,
-                                'content': flow.response.content.decode('utf-8', 'ignore'),
+                                # 'content': flow.response.content.decode('utf-8', 'ignore'),
                             }
                         }
                         index_func = functools.partial(es.index, index=telemetry_index_name, body=doc)
