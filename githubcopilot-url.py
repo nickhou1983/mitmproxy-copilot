@@ -1,11 +1,11 @@
 Github Copilot URL List
 
 your_allowed_domains = [
-    # your enterprices related
-    f"https://github.com/{enterprise_slug}/*",
-    f"https://github.com/{enterprise_slug}?*",
-    f"https://github.com/enterprises/{enterprise_slug}/*",
-    f"https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fenterprises%2F{enterprise_slug}",
+    # Github 网页版后台管理域名，需要开放，否则无法登录Github网页进行管理
+    "https://github.com/{enterprise_slug}/*",
+    "https://github.com/{enterprise_slug}?*",
+    # "https://github.com/enterprises/{enterprise_slug}/*",
+    # "https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Fenterprises%2F{enterprise_slug}",
 
     # anything you like
     # "https://www.google.com/*",
@@ -38,7 +38,7 @@ github_copilot_official_domains = [
 ]
 
 github_public_domains = [
-    # Github 登录相关域名
+    # Github 登录相关其他公共域名
     "https://github.com/favicon.ico",
     "https://github.com/account/*",
     "https://github.com/settings/*",
@@ -68,13 +68,13 @@ github_public_domains = [
     "https://github.com/switch_account/*",
 ]
 
-# Microsoft Extra ID Domains and IPs
-msft_extra_id_domains = [
-    "https://login.microsoftonline.com/*",
-    "https://aadcdn.msauth.net/*",
-    "https://login.live.com/*",
-    "https://*.activedirectory.windowsazure.com/*",
-]
+# 如果配置Azure AD 集成登录，需开放如下域名，通常不需要
+# msft_extra_id_domains = [
+#    "https://login.microsoftonline.com/*",
+#    "https://aadcdn.msauth.net/*",
+#    "https://login.live.com/*",
+#    "https://*.activedirectory.windowsazure.com/*",
+#]
 
 # IDE 和 插件安装域名列表
 ide_extension_domains = [
