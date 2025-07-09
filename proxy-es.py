@@ -6,9 +6,50 @@ import base64
 import os
 import json
 import functools
+import re
 # import redis # 导入Redis
 
 # 通常仅需要修改这里的配置
+
+# URL白名单配置
+URL_WHITELIST = [
+    "https://github.com/login*",
+    "https://github.com/login/oauth/*",
+    "https://api.github.com/copilot_internal/*",
+    "https://default.exp-tas.com",
+    "https://github.com/favicon.ico",
+    "https://github.com/account/*",
+    "https://github.com/session*",
+    "https://copilot-proxy.githubusercontent.com",
+    "https://origin-tracker.githubusercontent.com",
+    "https://copilot-telemetry.githubusercontent.com/telemetry",
+    "https://*.business.githubcopilot.com/*",
+    "https://*.enterprise.githubcopilot.com/*",
+    "https://github.com/settings/*",
+    "https://avatars.githubusercontent.com/*",
+    "https://api.github.com/*",
+    "https://github.com/notifications/*",
+    "https://github.com/copilot/*",
+    "https://raw.githubusercontent.com/*",
+    "https://github.githubassets.com/*",
+    "https://collector.github.com/*",
+    "https://github.com/github-copilot/*",
+    "https://collector.github.com/*",
+    # "https://github.com/dashboard/*",
+    # "https://github.com/dashboard?*",
+    "https://westus-0.in.applicationinsights.azure.com/v2.1/track",
+    "https://api.githubcopilot.com/_ping",
+    "*visualstudio.com*",
+    "*vscode-cdn*",
+    "*vsassets.io*",
+    "*gallerycdn.azure*",
+    "*microsoft.com*",
+    "*raw.githubusercontent.com*",
+    "*digicert.com*",
+    "*vscode.dev*",
+    "*jetbrains.com*",
+    "*jbstatic.com*",
+]
 
 # 初始化Elasticsearch客户端，如果Elasticsearch需要身份验证，可以在这里设置用户名和密码
 
@@ -35,8 +76,23 @@ class AuthProxy:
     def __init__(self):
         self.loop = asyncio.get_event_loop()
         self.proxy_authorizations = {}
+        self.whitelist = URL_WHITELIST
+        self.whitelist_patterns = self._compile_whitelist_patterns()
         # self.redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True) 
     
+    def _compile_whitelist_patterns(self):
+        """将URL白名单转换为正则表达式模式"""
+        patterns = []
+        for pattern in self.whitelist:
+            # 将通配符 * 转换为正则表达式，并转义其他特殊字符
+            regex_pattern = pattern.replace(".", "\\.").replace("*", ".*")
+            patterns.append(re.compile(regex_pattern))
+        return patterns
+    
+    def is_url_whitelisted(self, url):
+        """使用正则表达式检查URL是否在白名单中"""
+        return any(pattern.search(url) for pattern in self.whitelist_patterns)
+        
     def http_connect(self, flow: http.HTTPFlow):
         proxy_auth = flow.request.headers.get("Proxy-Authorization", "")
         
@@ -60,7 +116,15 @@ class AuthProxy:
             self.proxy_authorizations[(flow.client_conn.address[0])] = flow.client_conn.address[0]  # 记录IP地址作为用户名
         
     def request(self, flow: http.HTTPFlow):
-        pass
+        # 检查请求URL是否在白名单中
+        if not self.is_url_whitelisted(flow.request.url):
+            ctx.log.warn(f"Blocked non-whitelisted URL: {flow.request.url}")
+            flow.response = http.Response.make(
+                403,  # 状态码
+                f"访问被拒绝: URL不在白名单中".encode(),  # 响应内容
+                {"Content-Type": "text/plain; charset=utf-8"}  # 响应头
+            )
+            return
  
 
     def response(self, flow: http.HTTPFlow):
@@ -128,7 +192,7 @@ class AuthProxy:
                 json_objects = await self.split_jsons(request_content)
 
                 for obj in json_objects:
-                    ctx.log.info("obj: ===" + str(obj))
+                    # ctx.log.info("obj: ===" + str(obj))
                     baseDataName = obj.get("data").get("baseData").get("name")
                     accepted_numLines = 0
                     accepted_charLens = 0
