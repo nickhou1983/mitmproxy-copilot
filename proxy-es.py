@@ -16,6 +16,7 @@ URL_WHITELIST = [
     "https://github.com/login*",
     "https://github.com/login/oauth/*",
     "https://api.github.com/copilot_internal/*",
+    "https://github.com/assets-cdn/worker/*",
     "https://default.exp-tas.com",
     "https://github.com/favicon.ico",
     "https://github.com/account/*",
@@ -196,16 +197,16 @@ class AuthProxy:
                     # ctx.log.info("obj: ===" + str(obj))
                     baseDataName = obj.get("data").get("baseData").get("name")
                     accepted_numLines = 0
-                    accepted_charLens = 0
+                    # accepted_charLens = 0
                     shown_numLines = 0
-                    shown_charLens = 0
+                    # shown_charLens = 0
                     if "hown" in baseDataName or "accepted" in baseDataName or "message" in baseDataName:
                         if "hown" in baseDataName:
                             shown_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
-                            shown_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
+                            # shown_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
                         else: 
                             accepted_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
-                            accepted_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
+                            # accepted_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
                         doc = {
                             'user': username,
                             "timestamp": datetime.utcnow().isoformat(),
