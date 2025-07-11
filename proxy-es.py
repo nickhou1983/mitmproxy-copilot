@@ -7,6 +7,7 @@ import os
 import json
 import functools
 import re
+from functools import lru_cache
 # import redis # 导入Redis
 
 # 通常仅需要修改这里的配置
@@ -80,6 +81,12 @@ class AuthProxy:
         self.proxy_authorizations = {}
         self.whitelist = URL_WHITELIST
         self.whitelist_patterns = self._compile_whitelist_patterns()
+        # ElasticSearch 批量操作配置
+        self.es_queue = []  # 文档队列
+        self.es_queue_max_size = 50  # 队列达到此大小时批量提交
+        self.es_queue_lock = asyncio.Lock()  # 保护队列的锁
+        # 创建定期刷新队列的任务
+        asyncio.ensure_future(self.periodic_bulk_index())
         # self.redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True) 
     
     def _compile_whitelist_patterns(self):
@@ -91,8 +98,9 @@ class AuthProxy:
             patterns.append(re.compile(regex_pattern))
         return patterns
     
+    @lru_cache(maxsize=1000)
     def is_url_whitelisted(self, url):
-        """使用正则表达式检查URL是否在白名单中"""
+        """使用正则表达式检查URL是否在白名单中，使用LRU缓存提高性能"""
         return any(pattern.search(url) for pattern in self.whitelist_patterns)
         
     def http_connect(self, flow: http.HTTPFlow):
@@ -128,6 +136,44 @@ class AuthProxy:
             )
             return
  
+
+    async def periodic_bulk_index(self):
+        """定期将队列中的数据批量提交到 ElasticSearch，避免数据在队列中停留过长时间"""
+        while True:
+            await asyncio.sleep(10)  # 每10秒检查一次
+            await self.flush_es_queue()
+
+    async def flush_es_queue(self):
+        """将队列中的文档批量提交到 ElasticSearch"""
+        async with self.es_queue_lock:
+            if not self.es_queue:
+                return
+            
+            bulk_data = []
+            for index, doc in self.es_queue:
+                # 添加索引操作
+                bulk_data.append({"index": {"_index": index}})
+                # 添加文档
+                bulk_data.append(doc)
+            
+            self.es_queue = []  # 清空队列
+        
+        if bulk_data:
+            # 使用 run_in_executor 执行批量索引操作
+            try:
+                await self.loop.run_in_executor(None, lambda: es.bulk(body=bulk_data))
+                ctx.log.info(f"批量索引了 {len(bulk_data)//2} 个文档")
+            except Exception as e:
+                ctx.log.error(f"批量索引失败: {e}")
+
+    async def queue_document(self, index, doc):
+        """将文档添加到队列，当队列达到最大大小时执行批量操作"""
+        async with self.es_queue_lock:
+            self.es_queue.append((index, doc))
+            should_flush = len(self.es_queue) >= self.es_queue_max_size
+        
+        if should_flush:
+            await self.flush_es_queue()
 
     def response(self, flow: http.HTTPFlow):
         # 异步将请求和响应存储到Elasticsearch
@@ -182,54 +228,66 @@ class AuthProxy:
             }
 
             # 按照日期生成索引名称
+            # current_date = datetime.utcnow().strftime("%Y-%m-%d")
+            # mitmproxy_index_name = f"mitmproxy-logs-{current_date}"
+            # telemetry_index_name = f"telemetry-logs-{current_date}"
+            mitmproxy_index_name = "mitmproxy-logs"
+            telemetry_index_name = "telemetry-logs"
             
-            mitmproxy_index_name = f"mitmproxy-{datetime.utcnow().strftime('%Y-%m-%d')}"
-            telemetry_index_name = f"telemetry-{datetime.utcnow().strftime('%Y-%m-%d')}"
-
             if "complet" in flow.request.url:
-                index_func = functools.partial(es.index, index=mitmproxy_index_name, body=doc)
-                await self.loop.run_in_executor(None, index_func)
+                # 使用批量操作替代单个索引
+                await self.queue_document(mitmproxy_index_name, doc)
             else:
                 request_content = flow.request.content.decode('utf-8', 'ignore')
                 json_objects = await self.split_jsons(request_content)
 
                 for obj in json_objects:
                     # ctx.log.info("obj: ===" + str(obj))
-                    baseDataName = obj.get("data").get("baseData").get("name")
-                    accepted_numLines = 0
-                    # accepted_charLens = 0
-                    shown_numLines = 0
-                    # shown_charLens = 0
-                    if "hown" in baseDataName or "accepted" in baseDataName or "message" in baseDataName:
-                        if "hown" in baseDataName:
-                            shown_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
-                            # shown_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
-                        else: 
-                            accepted_numLines = obj.get("data").get("baseData").get("measurements").get("numLines")
-                            # accepted_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
-                        doc = {
-                            'user': username,
-                            "timestamp": datetime.utcnow().isoformat(),
-                            "proxy-time-consumed": timeconsumed_str,  # Use the modified timeconsumed string
-                            'request': {
-                                'url': flow.request.url,
-                                'baseData': baseDataName,
-                                'accepted_numLines': accepted_numLines,
-                                'shown_numLines': shown_numLines,
-                                # 'accepted_charLens': accepted_charLens,
-                                # 'shown_charLens': shown_charLens,
-                                'language': obj.get("data").get("baseData").get("properties").get("languageId"),
-                                'editor': obj.get("data").get("baseData").get("properties").get("editor_version").split("/")[0],
-                                'editor_version': obj.get("data").get("baseData").get("properties").get("editor_version").split("/")[1],
-                                'copilot-ext-version': obj.get("data").get("baseData").get("properties").get("common_extversion"),
-                            },
-                            'response': {
-                                'status_code': flow.response.status_code,
-                                # 'content': flow.response.content.decode('utf-8', 'ignore'),
+                    try:
+                        baseDataName = obj.get("data").get("baseData").get("name")
+                        accepted_numLines = 0
+                        # accepted_charLens = 0
+                        shown_numLines = 0
+                        # shown_charLens = 0
+                        if "hown" in baseDataName or "accepted" in baseDataName or "message" in baseDataName:
+                            if "hown" in baseDataName:
+                                shown_numLines = obj.get("data").get("baseData").get("measurements").get("numLines", 0)
+                                # shown_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
+                            else: 
+                                accepted_numLines = obj.get("data").get("baseData").get("measurements").get("numLines", 0)
+                                # accepted_charLens = obj.get("data").get("baseData").get("measurements").get("compCharLen")
+                            
+                            # 安全地获取属性，避免 None 值错误
+                            properties = obj.get("data", {}).get("baseData", {}).get("properties", {})
+                            editor_version = properties.get("editor_version", "unknown/unknown")
+                            editor_parts = editor_version.split("/") if "/" in editor_version else ["unknown", "unknown"]
+                            
+                            doc = {
+                                'user': username,
+                                "timestamp": datetime.utcnow().isoformat(),
+                                "proxy-time-consumed": timeconsumed_str,  # Use the modified timeconsumed string
+                                'request': {
+                                    'url': flow.request.url,
+                                    'baseData': baseDataName,
+                                    'accepted_numLines': accepted_numLines,
+                                    'shown_numLines': shown_numLines,
+                                    # 'accepted_charLens': accepted_charLens,
+                                    # 'shown_charLens': shown_charLens,
+                                    'language': properties.get("languageId", "unknown"),
+                                    'editor': editor_parts[0],
+                                    'editor_version': editor_parts[1],
+                                    'copilot-ext-version': properties.get("common_extversion", "unknown"),
+                                },
+                                'response': {
+                                    'status_code': flow.response.status_code,
+                                    # 'content': flow.response.content.decode('utf-8', 'ignore'),
+                                }
                             }
-                        }
-                        index_func = functools.partial(es.index, index=telemetry_index_name, body=doc)
-                        await self.loop.run_in_executor(None, index_func)
+                            # 使用批量操作替代单个索引
+                            await self.queue_document(telemetry_index_name, doc)
+                    except Exception as e:
+                        ctx.log.error(f"处理遥测数据时出错: {e}")
+                        continue
   
 
 # 添加插件
