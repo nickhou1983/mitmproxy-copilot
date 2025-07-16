@@ -16,8 +16,12 @@ RUN pip install mitmproxy elasticsearch asyncio redis chardet pathlib typing dat
 WORKDIR /app
 
 
-# 设置mitmproxy的启动命令，使用您的脚本作为参数
+# Mitmproxy 捕获所有流量，适用于Mitmproxy 作为域名过滤的场景
 # CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es-stream.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false"]
-CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false", "--ignore-hosts", "(.*vo\\.msecnd\\.net.*|.*default\\.exp-tas\\.com.*|.*visualstudio\\.com.*|.*vscode-cdn.*|.*vsassets\\.io.*|.*gallerycdn\\.azure.*|.*microsoft\\.com.*|.*raw\\.githubusercontent\\.com.*|.*digicert\\.com.*|.*vscode\\.dev.*|.*jetbrains\\.com.*|.*jbstatic\\.com.*|.*mitm\\.it.*|.*applicationinsights\\.azure\\.com.*)"]
 
+# Mitmproxy 捕获所有流量，除了--ignore-hosts 中指定的域名，适用于Mitmproxy 作为域名过滤的场景
+# CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false", "--ignore-hosts", "(.*vo\\.msecnd\\.net.*|.*default\\.exp-tas\\.com.*|.*visualstudio\\.com.*|.*vscode-cdn.*|.*vsassets\\.io.*|.*gallerycdn\\.azure.*|.*microsoft\\.com.*|.*raw\\.githubusercontent\\.com.*|.*digicert\\.com.*|.*vscode\\.dev.*|.*jetbrains\\.com.*|.*jbstatic\\.com.*|.*mitm\\.it.*|.*applicationinsights\\.azure\\.com.*)"]
+
+# Mitmproxy 只捕获Github域名流量，其他域名均直接转发
+CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false", "--allow-hosts", "(.*github\\.com.*|.*githubusercontent\\.com.*|.*githubcopilot\\.com.*)"]
 
