@@ -21,12 +21,7 @@
 2. 代理服务器会首先缓存Copilot Chat响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；
 3. 代理服务器仅支持基本身份验证，需在Redis中配置用户名和密码；
 
-## 代理服务器支持捕获的域名说明
-| 捕获的域名 | 用途 | 内容 | 延时影响 | 说明 |
-| --- | --- | --- | --- | --- |
-| api.business.githubcopilot.com,api.enterprise.githubcopilot.com| Github Copilot Chat | Chat 请求和响应内容 | 启用：首字符返回延时平均在5-10s；关闭：首字符返回延时平均在1-2s | 启用此URL流量捕获后，代理服务器会首先缓存Copilot Chat响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
-| proxy.business.githubcopilot.com,proxy.enterprise.githubcopilot.com | IDE Completion（代码补全等） | IDE Editor中请求和响应内容 | 基本无影响 | 启用此URL流量捕获后，代理服务器会首先缓存Copilot IDE Completion响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；关闭此URL流量捕获后，代理服务器不会混存相应内容，透明转发给IDE，无法捕获请求和影响内容；|
-| Copilot-Telemetry.githubusercontent.com,Copilot-Telemetry-Service.githubusercontent.com,telemetry.business.githubcopilot.com,telemetry.enterprise.githubcopilot.com | Github Copilot 遥测数据 | IDE Completion ：代码建议行数/代码接受行数 | 不适用 | 当前不支持Copilot Chat 的遥测数据 |
+
 
 ## 部署架构
 
@@ -64,14 +59,12 @@ docker build . -t mitmproxy-copilot:v1
 docker run -d --net="host" \
   -v $(pwd)/proxy-es.py:/app/proxy-es.py \
   -v $(pwd)/certs:/opt/mitmproxy \
-  -v $(pwd)/creds.txt:/app/creds.txt \
   mitmproxy-copilot:v1
 ```
 
 > **说明：**
 > - `$(pwd)/proxy-es.py:/app/proxy-es.py` — 挂载宿主机当前目录下的 `proxy-es.py` 脚本到容器中，修改后重启容器即可生效；
 > - `$(pwd)/certs:/opt/mitmproxy` — 挂载宿主机当前目录下的 `certs` 证书目录到容器中，该目录包含 mitmproxy 的 CA 证书文件；
-> - `$(pwd)/creds.txt:/app/creds.txt` — 挂载宿主机当前目录下的用户名密码文件到容器中；
 
 如果首次运行没有现成的证书，可以先不挂载 `certs` 目录，让 mitmproxy 自动生成证书，然后从容器中拷贝出来：
 ```
