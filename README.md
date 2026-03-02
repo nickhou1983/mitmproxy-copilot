@@ -58,10 +58,41 @@ docker build . -t mitmproxy-copilot:v1
 ```
 
 3. 运行容器
+
+通过 `-v` 参数将宿主机上的 `proxy-es.py` 脚本和 `certs` 证书目录挂载到容器中，方便修改配置而无需重新构建镜像：
 ```
-docker run -d --net="host" mitmproxy-copilot:v1 -v ./creds.txt:/app/creds.txt -v ./proxy-es.py:/app/proxy-es.py
+docker run -d --net="host" \
+  -v $(pwd)/proxy-es.py:/app/proxy-es.py \
+  -v $(pwd)/certs:/opt/mitmproxy \
+  -v $(pwd)/creds.txt:/app/creds.txt \
+  mitmproxy-copilot:v1
 ```
 
+> **说明：**
+> - `$(pwd)/proxy-es.py:/app/proxy-es.py` — 挂载宿主机当前目录下的 `proxy-es.py` 脚本到容器中，修改后重启容器即可生效；
+> - `$(pwd)/certs:/opt/mitmproxy` — 挂载宿主机当前目录下的 `certs` 证书目录到容器中，该目录包含 mitmproxy 的 CA 证书文件；
+> - `$(pwd)/creds.txt:/app/creds.txt` — 挂载宿主机当前目录下的用户名密码文件到容器中；
+
+如果首次运行没有现成的证书，可以先不挂载 `certs` 目录，让 mitmproxy 自动生成证书，然后从容器中拷贝出来：
+```
+# 先启动容器（不挂载证书目录）
+docker run -d --name mitmproxy-tmp --net="host" \
+  -v $(pwd)/proxy-es.py:/app/proxy-es.py \
+  mitmproxy-copilot:v1
+
+# 从容器中拷贝生成的证书到宿主机
+docker cp mitmproxy-tmp:/opt/mitmproxy ./certs
+
+# 停止并删除临时容器
+docker rm -f mitmproxy-tmp
+
+# 再使用挂载证书目录的方式启动容器
+docker run -d --net="host" \
+  -v $(pwd)/proxy-es.py:/app/proxy-es.py \
+  -v $(pwd)/certs:/opt/mitmproxy \
+  -v $(pwd)/creds.txt:/app/creds.txt \
+  mitmproxy-copilot:v1
+```
 
 ### 代理高可用部署
 
