@@ -17,7 +17,7 @@ WORKDIR /app
 
 
 # 设置mitmproxy的启动命令，使用您的脚本作为参数
-CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es-stream.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false"]
+CMD ["mitmdump", "--set", "confdir=/opt/mitmproxy", "-s", "proxy-es.py", "-p", "8080", "--listen-host", "0.0.0.0", "--set", "block_global=false"]
 
 
 
