@@ -31,9 +31,9 @@
 
 | 服务器 | 规格 | 数量 | 用途 |
 | --- | --- | --- | --- |
-| mitmproxy | 4C16G 200GDisk | 1 | 部署mitmproxy
-| elasticsearch | 2C8G 500GDisk | 3 | 存储mitmproxy数据
-| kibana | 2C8G 200GDisk | 1 | 可视化mitmproxy数据
+| mitmproxy | 8C32G 500G SSD | 2 | 部署mitmproxy
+| elasticsearch | 4C16G 500GDisk | 3 | 存储mitmproxy数据
+| kibana | 4C16G 200GDisk | 1 | 可视化mitmproxy数据
 
 
 
