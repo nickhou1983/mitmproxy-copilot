@@ -169,16 +169,18 @@ class AuthProxy:
         ctx.log.info("url: " + flow.request.url)
         if is_copilot_target_url(flow.request.url):
 
-            username = self.proxy_authorizations.get(flow.client_conn.address[0])
+            client_ip = flow.client_conn.address[0]
+            username = self.proxy_authorizations.get(client_ip)
+            user_value = username or client_ip
             end_time = time.time()
             timeconsumed = round((end_time - start_time) * 1000, 2) if start_time else 0
             timeconsumed_str = f"{timeconsumed}ms"
 
-            ctx.log.info((username or "") + ":\t consumed time: " + timeconsumed_str + str(flow.request.headers.get("x-request-id")))
+            ctx.log.info(user_value + ":\t consumed time: " + timeconsumed_str + str(flow.request.headers.get("x-request-id")))
 
             # 将请求存储到Elasticsearch
             doc = {
-                'user': username,
+                'user': user_value,
                 "timestamp": datetime.utcnow().isoformat(),
                 "proxy-time-consumed": timeconsumed_str,
                 'request': {
