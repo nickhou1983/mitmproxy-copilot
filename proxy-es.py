@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import re
 import time
@@ -18,7 +17,7 @@ ELASTICSEARCH_PASSWORD = ""
 
 # 添加Redis连接
 REDIS_HOST="democopilotredis.redis.cache.windows.net"
-REDIS_PORT=6379
+REDIS_PORT=10000
 REDIS_PASSWORD=""
 
 # 可配置：需要采集并写入 ES 的 Copilot URL 匹配规则（正则）
@@ -28,9 +27,7 @@ COPILOT_URL_PATTERNS = [
     r"complet",
     r"completion",
     r"api\.business\.githubcopilot\.com/.*",
-    r"proxy\.business\.githubcopilot\.com/.*",
     r"api\.enterprise\.githubcopilot\.com/.*",
-    r"proxy\.enterprise\.githubcopilot\.com/.*",
 
     # Copilot 鉴权与通知
     # r"api\.github\.com/copilot_internal/v2/token",
@@ -57,29 +54,6 @@ def is_copilot_target_url(url: str) -> bool:
         if re.search(pattern, url):
             return True
     return False
-
-
-def parseResContent(content: str) -> str:
-    """
-    解析 SSE (Server-Sent Events) 格式的 Copilot 响应，
-    提取 choices[0].delta.content 或 choices[0].text，拼接为完整文本。
-    """
-    lines = content.strip().split('\n')
-    content_string = ""
-    for line in lines:
-        json_str = line.replace("data: ", "").rstrip(',')
-        if json_str == "[DONE]" or not json_str.strip():
-            continue
-        try:
-            data_entry = json.loads(json_str)
-            if data_entry.get('choices'):
-                if 'delta' in data_entry['choices'][0] and data_entry['choices'][0]['delta'].get('content') is not None:
-                    content_string += data_entry['choices'][0]['delta']['content']
-                elif 'text' in data_entry['choices'][0]:
-                    content_string += data_entry['choices'][0]['text']
-        except json.JSONDecodeError:
-            continue
-    return content_string
 
 
 class StreamSaver:
@@ -120,7 +94,6 @@ class AuthProxy:
         self.redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
         # 用于暂存每个连接的流式收集器和计时信息
         self._req_streams = {}   # flow.id -> StreamSaver
-        self._rsp_streams = {}   # flow.id -> StreamSaver
         self._req_timestamps = {} # flow.id -> start_time
     
     def http_connect(self, flow: http.HTTPFlow):
@@ -164,33 +137,25 @@ class AuthProxy:
         self._req_timestamps[flow.id] = time.time()
 
     def responseheaders(self, flow: http.HTTPFlow) -> None:
-        """响应头到达时，完成请求体收集，开启响应体流式捕获"""
+        """响应头到达时，完成请求体收集，并启用响应流式透传"""
         # 完成请求流收集
         req_stream = self._req_streams.get(flow.id)
         if isinstance(req_stream, StreamSaver):
             req_stream.done()
 
-        # 开启响应体流式捕获
-        rsp_stream = StreamSaver(flow, "rsp")
-        flow.response.stream = rsp_stream
-        self._rsp_streams[flow.id] = rsp_stream
+        # 启用响应体流式透传，避免先缓存在代理内存中
+        flow.response.stream = (lambda data: data)
 
     def response(self, flow: http.HTTPFlow) -> None:
-        """响应完成时，收集所有数据并异步存储到 Elasticsearch"""
-        # 完成响应流收集
-        rsp_stream = self._rsp_streams.pop(flow.id, None)
-        if isinstance(rsp_stream, StreamSaver):
-            rsp_stream.done()
-
+        """响应完成时，收集请求数据并异步存储到 Elasticsearch"""
         req_stream = self._req_streams.pop(flow.id, None)
         start_time = self._req_timestamps.pop(flow.id, None)
 
         req_content = req_stream.content if req_stream else ""
-        rsp_content = rsp_stream.content if rsp_stream else ""
 
         ctx.log.info("response: " + flow.request.url)
         asyncio.ensure_future(
-            self.save_to_elasticsearch(flow, req_content, rsp_content, start_time)
+            self.save_to_elasticsearch(flow, req_content, start_time)
         )
 
     def error(self, flow: http.HTTPFlow) -> None:
@@ -198,12 +163,9 @@ class AuthProxy:
         req_stream = self._req_streams.pop(flow.id, None)
         if isinstance(req_stream, StreamSaver):
             req_stream.done()
-        rsp_stream = self._rsp_streams.pop(flow.id, None)
-        if isinstance(rsp_stream, StreamSaver):
-            rsp_stream.done()
         self._req_timestamps.pop(flow.id, None)
 
-    async def save_to_elasticsearch(self, flow: http.HTTPFlow, req_content: str, rsp_content: str, start_time: float):
+    async def save_to_elasticsearch(self, flow: http.HTTPFlow, req_content: str, start_time: float):
         ctx.log.info("url: " + flow.request.url)
         if is_copilot_target_url(flow.request.url):
 
@@ -214,10 +176,7 @@ class AuthProxy:
 
             ctx.log.info((username or "") + ":\t consumed time: " + timeconsumed_str + str(flow.request.headers.get("x-request-id")))
 
-            # 对补全响应进行 SSE 解析，提取可读文本
-            parsed_rsp = parseResContent(rsp_content)
-
-            # 将请求和响应存储到Elasticsearch
+            # 将请求存储到Elasticsearch
             doc = {
                 'user': username,
                 "timestamp": datetime.utcnow().isoformat(),
@@ -227,11 +186,6 @@ class AuthProxy:
                     'method': flow.request.method,
                     'headers': dict(flow.request.headers),
                     'content': req_content,
-                },
-                'response': {
-                    'status_code': flow.response.status_code,
-                    'headers': dict(flow.response.headers),
-                    'content': parsed_rsp if parsed_rsp else rsp_content,
                 }
             }
 

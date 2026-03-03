@@ -3,7 +3,7 @@
 此代理服务器通过开源的 mitmproxy 实现，可以参考 [mitmproxy 官方文档](https://docs.mitmproxy.org/stable/) 进行使用。请务必确认不要修改HTTP请求中的任何字段信息，否则可能会被Github检测到并封禁账号；
 
 此代理服务器的主要用于提供如下功能：
-1. 记录开发者通过代理服务器上传到Github Copilot的代码片段上下文和生成的代码片段；
+1. 记录开发者通过代理服务器上传到Github Copilot的代码片段上下文；
 2. 用于记录通过开发者的活动信息；
 3. 用于记录开发者的代码生成和接受数据；
 
@@ -18,7 +18,7 @@
 ## 已知问题
 
 1. 密码为数字，或数字和字母组合，请不要包含特殊字符，否则可能会导致mitmproxy无法启动；
-2. 代理服务器会首先缓存Copilot Chat响应内容，等全部接收后，再转发给IDE，导致增加返回的延时；
+2. 代理服务器默认将Copilot Chat响应内容流式透传给IDE，不会先完整缓存响应体；
 3. 代理服务器仅支持基本身份验证，需在Redis中配置用户名和密码；
 
 
@@ -109,4 +109,4 @@ certutil -addstore root mitmproxy-ca-cert.cer
 * Http:Proxy 采用如下格式：*http://用户名:密码@代理服务器地址:代理服务器端口*
 * Http: Proxy Strict SSL 启用后，IDE会检查Mitmproxy代理服务器的证书。禁用后，IDE 不会检查Mitmproxy代理服务器的证书；
 
-3. 启用代理后，IDE会通过代理服务器访问Github Copilot Chat，代理服务器会记录请求和响应内容；
+3. 启用代理后，IDE会通过代理服务器访问Github Copilot Chat，代理服务器仅记录请求内容；
