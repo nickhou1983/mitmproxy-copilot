@@ -83,7 +83,6 @@ docker rm -f mitmproxy-tmp
 docker run -d --net="host" \
   -v $(pwd)/proxy-es.py:/app/proxy-es.py \
   -v $(pwd)/certs:/opt/mitmproxy \
-  -v $(pwd)/creds.txt:/app/creds.txt \
   mitmproxy-copilot:v1
 ```
 
