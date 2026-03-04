@@ -2,7 +2,9 @@
 FROM mitmproxy/mitmproxy:10.0.0
 
 # 安装任何额外的依赖项（如果需要）
-RUN pip install mitmproxy elasticsearch redis chardet
+# redis>=4.2.0 包含 redis.asyncio 异步客户端
+# elasticsearch 需支持 helpers.bulk
+RUN pip install mitmproxy elasticsearch redis>=4.2.0 chardet
 
 # 在生产环境中，建议将配置通过Volume 挂载方式挂载到容器中，这样可以方便的修改配置；
 # 将您的脚本添加到容器中, 建议可以采用docker -v 将脚本挂载到容器中
